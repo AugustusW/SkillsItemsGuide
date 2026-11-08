@@ -5,7 +5,9 @@ An addon for **World of Warcraft: Forever** (Interface 16001): material reverse 
 - Hold **Shift** on an item to see recipes from your professions that use it (green = learned).
 - **Alt+left-click** an item in your bags, or type `/sig`, to open the full window.
 - Open each profession window and your class trainer once to mark learned recipes and fill in training costs.
-- Download: CurseForge. Support: support@augustusw.com. License: MIT.
+- Download: CurseForge. Support: support@augustusw.com · [Buy me a coffee / 請我喝杯咖啡](https://link.augustusw.com/coffee). License: MIT.
+
+If this addon helps you, a star on the repo helps other players find it. 覺得好用的話，幫這個 repo 按個星，能讓其他玩家更容易找到。
 
 ---
 
