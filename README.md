@@ -5,7 +5,7 @@ An addon for **World of Warcraft: Forever** (Interface 16001): material reverse 
 - Hold **Shift** on an item to see recipes from your professions that use it (green = learned).
 - **Alt+left-click** an item in your bags, or type `/sig`, to open the full window.
 - Open each profession window and your class trainer once to mark learned recipes and fill in training costs.
-- Download: CurseForge. Support: support@augustusw.com · [Buy me a coffee / 請我喝杯咖啡](https://link.augustusw.com/coffee). License: MIT.
+- Download: [CurseForge](https://www.curseforge.com/wow/addons/skillsitemsguide). Support: support@augustusw.com · [Buy me a coffee / 請我喝杯咖啡](https://link.augustusw.com/coffee). License: MIT.
 
 If this addon helps you, a star on the repo helps other players find it. 覺得好用的話，幫這個 repo 按個星，能讓其他玩家更容易找到。
 
@@ -14,6 +14,8 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 魔獸世界：永恆（Interface 16001）用的 addon。材料反查、配方樹狀拆解、職業技能等級查詢，資料離線打包。
 
 ## 安裝
+
+從 [CurseForge](https://www.curseforge.com/wow/addons/skillsitemsguide) 下載（CurseForge App 可自動更新），或手動安裝：
 
 把整個 `SkillsItemsGuide` 資料夾放到 `_forever_/Interface/AddOns/`，角色選擇畫面勾選「技能物品指南」。
 裝過探測版 `CraftSkillBook` 的話，先刪掉那個資料夾。
