@@ -4,16 +4,63 @@ local _, ns = ...
 local Names = {}
 ns.Names = Names
 
-local requested = {}
+-- 名稱載入（使用者實測 2026-11-08：只請求一次的話，伺服器漏回或 client 沒有的物品會永遠是代碼、搜尋永遠「載入中」）
+-- 每個物品最多請求 MAX_TRIES 次。計時器每 RETRY_SEC 秒一輪；請求後至少等滿一整輪（下下個計時器）才重試，
+-- 輪中途才請求的物品不會被下一個計時器立刻放掉。伺服器回報失敗的不再請求。
+-- 沒有 C_Timer 時無法重試：請求一次就算結束（不能讓 inflight 永遠掛著，否則搜尋又會卡在載入中）。
+local MAX_TRIES, RETRY_SEC = 3, 5
+local tries, inflight, failed = {}, {}, {} -- inflight[id] = 送出請求時的輪次
+local round, scheduled = 0, false
+
+local function tick()
+  scheduled = false
+  round = round + 1
+  local waiting = false
+  for id, r in pairs(inflight) do
+    if r < round - 1 then inflight[id] = nil else waiting = true end
+  end
+  if waiting then
+    scheduled = true
+    C_Timer.After(RETRY_SEC, tick)
+  end
+  if ns.Window and ns.Window.refreshIfShown then ns.Window.refreshIfShown() end
+end
+
+local function fallback(id)
+  -- 打包的是官方 API 的 zh_TW 名稱，只在繁中 client 用
+  if GetLocale and GetLocale() == "zhTW" then
+    local t = ns.Data and ns.Data.itemNames
+    return t and t[id] or nil
+  end
+  return nil
+end
+
 function Names.item(id)
   if not id then return nil end
   local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
-  -- 每個物品只請求一次，避免「請求 → 事件 → 重畫 → 再請求」循環
-  if not name and not requested[id] and C_Item and C_Item.RequestLoadItemDataByID then
-    requested[id] = true
+  if name then return name end
+  local n = tries[id] or 0
+  if not failed[id] and not inflight[id] and n < MAX_TRIES and C_Item and C_Item.RequestLoadItemDataByID then
     C_Item.RequestLoadItemDataByID(id)
+    if C_Timer and C_Timer.After then
+      tries[id], inflight[id] = n + 1, round
+      if not scheduled then scheduled = true; C_Timer.After(RETRY_SEC, tick) end
+    else
+      tries[id] = MAX_TRIES
+    end
   end
-  return name
+  return fallback(id)
+end
+
+-- 名稱還可能回來嗎（搜尋用：可能回來的才算「載入中」）
+function Names.isPending(id)
+  if failed[id] then return false end
+  return inflight[id] ~= nil or (tries[id] or 0) < MAX_TRIES
+end
+
+-- 只標記自己請求過的物品（GET_ITEM_INFO_RECEIVED 也會因為別的 addon 的請求觸發）
+function Names.markFailed(id)
+  if id and tries[id] then failed[id] = true; inflight[id] = nil end
 end
 
 function Names.prof(id) return ns.L.prof(id) end

@@ -39,14 +39,20 @@ local function titleOf(rid) return ns.Format.recipeTitle(ns.Names, rid) end
 local function matches(rid, q)
   local rec = ns.Data.recipes[rid]
   local pending = false
-  local function test(name) if name == nil then pending = true return false end return name:find(q, 1, true) ~= nil end
+  local function test(name, id)
+    if name == nil then
+      if ns.Names.isPending(id) then pending = true end -- 重試用完或伺服器回失敗的不算載入中
+      return false
+    end
+    return name:find(q, 1, true) ~= nil
+  end
   if rec.item then
-    if test(itemName(rec.item)) then return true, pending end
+    if test(itemName(rec.item), rec.item) then return true, pending end
   else
     local n = ns.Names.recipe(rid)
     if n and n:find(q, 1, true) then return true, pending end
   end
-  for _, rg in ipairs(rec.r or {}) do if test(itemName(rg[1])) then return true, pending end end
+  for _, rg in ipairs(rec.r or {}) do if test(itemName(rg[1]), rg[1]) then return true, pending end end
   return false, pending
 end
 
@@ -78,6 +84,7 @@ local function recomputeImpl()
   S.list, S.loading = list, loading
   if #list > 0 then
     S.empty = nil
+    if loading then S.header = L.label(S.header, L.NAMES_LOADING) end -- 結果先列出，還有名稱在載入就在標題提示
   elseif q and q ~= "" then
     S.empty = loading and L.NAMES_LOADING or L.SEARCH_EMPTY
   else
@@ -125,18 +132,31 @@ local function showTree(owner, rid)
   local tt = ns.Format.treeTooltip(res, ns.Names, 12)
   GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
   GameTooltip:ClearLines()
+  -- 使用者實測：只有拆解樹不夠，物品本身的資訊（屬性、類型、售價）最重要 → 先放遊戲原本的 tooltip
+  -- API 不存在時（永恆未必都有）退回只有拆解樹
+  local rec = ns.Data.recipes[rid]
+  local native = false
+  if rec.item and GameTooltip.SetItemByID then
+    GameTooltip:SetItemByID(rec.item); native = true
+  elseif not rec.item and rec.spell and GameTooltip.SetSpellByID then
+    GameTooltip:SetSpellByID(rec.spell); native = true
+  end
+  if native then GameTooltip:AddLine(" ") end
   for _, l in ipairs(tt.lines) do
-    local c = { 1, 1, 1 }
-    if l.title then
-      local it = l.item and ns.Data.items and ns.Data.items[l.item]
-      c = QUALITY[it and it.q or 1] or c
-    elseif l.cooldown then c = { 1, 0.3, 0.3 }
-    elseif l.materials then c = { 1, 0.82, 0 }
-    elseif l.more or l.hint then c = GREY end
-    GameTooltip:AddLine(l.text, c[1], c[2], c[3], true)
+    if not (native and l.title) then -- 已經有物品／法術 tooltip，不再重複成品名稱標題
+      local c = { 1, 1, 1 }
+      if l.title then
+        local it = l.item and ns.Data.items and ns.Data.items[l.item]
+        c = QUALITY[it and it.q or 1] or c
+      elseif l.cooldown then c = { 1, 0.3, 0.3 }
+      elseif l.materials then c = { 1, 0.82, 0 }
+      elseif l.more or l.hint then c = GREY end
+      GameTooltip:AddLine(l.text, c[1], c[2], c[3], true)
+    end
   end
   GameTooltip:Show()
 end
+Window.showTree = showTree
 
 local function iconOf(rid)
   local rec = ns.Data.recipes[rid]
@@ -418,6 +438,11 @@ function Window.defaultProf()
   return mine[1]
 end
 
+-- 名稱重試的下一輪：視窗開著就重算（會觸發還沒回來的物品再請求一次）
+function Window.refreshIfShown()
+  if frame and frame:IsShown() then recompute(); Window.render() end
+end
+
 function Window.toggle()
   if frame and frame:IsShown() then frame:Hide() else Window.open({}) end
 end
@@ -434,8 +459,9 @@ table.insert(ns.onLoad, function()
     if frame and frame:IsShown() then recompute(); Window.render() end
     if GameTooltip and GameTooltip.IsShown and GameTooltip:IsShown() and GameTooltip.RefreshData then GameTooltip:RefreshData() end
   end
-  f:SetScript("OnEvent", function(_, _, _, success)
-    if success == false or pending then return end
+  f:SetScript("OnEvent", function(_, _, itemId, success)
+    if success == false then ns.Names.markFailed(itemId) end -- 失敗也走下面的合併刷新，搜尋狀態立刻更新
+    if pending then return end
     pending = true
     if C_Timer and C_Timer.After then C_Timer.After(0.2, flush) else flush() end
   end)

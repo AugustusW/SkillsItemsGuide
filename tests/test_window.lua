@@ -36,12 +36,12 @@ ok, err = pcall(ns.Window.open, {})
 H.check(ok, "不帶參數開啟不報錯：" .. tostring(err))
 H.eq(ns.Window.state().material, nil, "不帶材料時不是反查模式")
 
--- 名稱未快取：標題用佔位，搜尋時顯示「名稱載入中」
+-- 名稱未快取：繁中改用打包的官方名稱（0.1.1，使用者回報代碼與搜尋卡住）；英文的佔位與載入中見 test_names.lua
 cached[2589] = false
 ns.Window.open({ material = 2589 })
-H.eq(ns.Window.state().header, "物品 #2589：被 12 條配方使用", "名稱未快取時標題用佔位")
+H.eq(ns.Window.state().header, ns.Data.itemNames[2589] .. "：被 12 條配方使用", "繁中名稱未快取時標題用打包的官方名稱")
 ns.Window.setSearch("亞麻")
-H.check(ns.Window.state().loading == true, "有未快取名稱時標示載入中")
+H.check(ns.Window.state().loading == false, "繁中有打包名稱時，搜尋不必等 client 載入")
 cached[2589] = nil
 H.fire("GET_ITEM_INFO_RECEIVED", 2589, true)
 H.eq(ns.Window.state().header, "亞麻布：被 12 條配方使用", "名稱回來後刷新標題")
