@@ -5,7 +5,7 @@ An addon for **World of Warcraft: Forever** (Interface 16001) and **Retail** (Mi
 - Retail: 11,042 recipes across all expansions; quality tiers of the same reagent are merged into one entry, and recipes from older expansions are labeled.
 
 - Hold **Shift** on an item to see recipes from your professions that use it (green = learned).
-- **Alt+left-click** an item in your bags, or type `/sig`, to open the full window.
+- **Alt+left-click** an item in your bags, type `/sig`, or click the entry in the addon compartment next to the minimap to open the full window.
 - Open each profession window once to mark learned recipes (on Forever, also your class trainer to fill in training costs). On Retail, ranked recipes count as learned when any rank is known.
 - Download: [CurseForge](https://www.curseforge.com/wow/addons/skillsitemsguide). Support: support@augustusw.com · [Buy me a coffee / 請我喝杯咖啡](https://link.augustusw.com/coffee). License: MIT.
 
@@ -29,6 +29,7 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 - 物品 tooltip：多一行「專業（數量）」；按住 Shift 列出你有學的專業會用到它的配方（最多 8 條）
   - 綠色＝已學會；灰白＝還沒學，或該專業視窗還沒打開過所以不知道（最後一行會提示）。這裡的綠色不是物品品質
 - 背包物品 **Alt+左鍵**：開完整視窗並列出用到它的配方（材料反查）
+- 小地圖旁的插件收納按鈕：點「技能物品指南」開關完整視窗
 - `/sig` 或 `/skillsitemsguide`：開關完整視窗（指令被其他插件佔用時不註冊）
   - 專業分頁：搜尋、依專業瀏覽、數量、滑鼠移到圖示看拆解、「+」展開、Shift+點圖示貼連結
   - 職業技能分頁（永恆限定）：職業下拉、搜尋、已學會／可以學／等級還不到篩選、學費

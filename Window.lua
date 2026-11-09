@@ -509,4 +509,21 @@ table.insert(ns.onLoad, function()
   ns.registerSlash("SIG", "/sig", Window.toggle)
 end)
 
+-- 小地圖旁官方「插件收納」按鈕（Addon Compartment）：TOC 的 AddonCompartmentFunc* 指名這三個全域函式
+-- 使用者 2026-11-09：永恆與正式版同位置；不另做小地圖圓形按鈕
+function SkillsItemsGuide_OnAddonCompartmentClick() Window.toggle() end
+
+function SkillsItemsGuide_OnAddonCompartmentEnter(_, button)
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(button, "ANCHOR_LEFT")
+  GameTooltip:ClearLines()
+  GameTooltip:AddLine(L.ADDON_TITLE)
+  GameTooltip:AddLine(L.COMPARTMENT_HINT, GREY[1], GREY[2], GREY[3], true)
+  GameTooltip:Show()
+end
+
+function SkillsItemsGuide_OnAddonCompartmentLeave()
+  if GameTooltip then GameTooltip:Hide() end
+end
+
 function Window._ui() return ui end -- 測試用

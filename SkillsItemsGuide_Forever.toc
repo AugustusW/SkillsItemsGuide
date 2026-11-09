@@ -3,10 +3,13 @@
 ## Title-zhTW: 技能物品指南
 ## Notes: Material reverse lookup, recipe breakdown and class skill levels, offline. Support: support@augustusw.com
 ## Notes-zhTW: 材料反查、配方拆解與職業技能等級查詢（離線資料）。問題回報：support@augustusw.com
-## Version: 0.2.0
+## Version: 0.2.1
 ## Author: AugustusW
 ## X-Email: support@augustusw.com
 ## IconTexture: Interface\AddOns\SkillsItemsGuide\Media\icon
+## AddonCompartmentFunc: SkillsItemsGuide_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: SkillsItemsGuide_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: SkillsItemsGuide_OnAddonCompartmentLeave
 ## SavedVariables: SkillsItemsGuideDB
 ## SavedVariablesPerCharacter: SkillsItemsGuideCharDB
 ## Category: Professions
