@@ -1,9 +1,5 @@
 -- 使用者實測（2026-11-08）：完整視窗的配方圖示 tooltip 只有拆解樹，少了物品本身的資訊
-local files = {}
-for line in io.lines(H.dir .. "/SkillsItemsGuide.toc") do
-  line = line:gsub("\r", "")
-  if line ~= "" and not line:match("^#") then files[#files + 1] = line end
-end
+local files = H.tocFiles("SkillsItemsGuide_Forever.toc")
 
 local calls
 local function boot(withItemApi)

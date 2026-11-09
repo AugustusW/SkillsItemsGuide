@@ -24,7 +24,12 @@ function Format.countsLine(itemId, names)
   local pc = ns.Index.profCounts(itemId)
   if #pc == 0 then return nil end
   local parts = {}
-  for i, x in ipairs(pc) do parts[i] = L.paren(names.prof(x.prof), x.n) end
+  for i, x in ipairs(pc) do
+    local old = x.old or 0
+    local inner = x.n
+    if old > 0 then inner = (x.n > 0) and L.withOld(x.n, old) or L.oldOnly(old) end
+    parts[i] = L.paren(names.prof(x.prof), inner)
+  end
   return L.join(parts)
 end
 
@@ -35,17 +40,33 @@ function Format.shiftLines(itemId, char, names, max)
   local known = char.known or {}
   local opened = char.opened or {}
   local out, more, missing, missingOrder = {}, 0, {}, {}
-  for _, rid in ipairs(ns.Index.usedBy(itemId)) do
+  local canon = ns.Index.canonical(itemId)
+  local tiers = ns.Data.tiers
+  -- 正式版：當前資料片的配方排前面（穩定排序，保留原本順序）
+  local list = {}
+  for _, rid in ipairs(ns.Index.usedBy(itemId)) do list[#list + 1] = rid end
+  if tiers then
+    local cur, old = {}, {}
+    for _, rid in ipairs(list) do
+      local t = tiers[ns.Data.recipes[rid].t or -1]
+      if t and t.cur == false then old[#old + 1] = rid else cur[#cur + 1] = rid end
+    end
+    list = cur
+    for _, rid in ipairs(old) do list[#list + 1] = rid end
+  end
+  for _, rid in ipairs(list) do
     local rec = ns.Data.recipes[rid]
     if profs[tostring(rec.p)] then
       if #out < max then
         local qty = 0
-        for _, rg in ipairs(rec.r) do if rg[1] == itemId then qty = rg[2] end end
+        for _, rg in ipairs(rec.r) do if ns.Index.canonical(rg[1]) == canon then qty = rg[2]; break end end
         local text = L.label(names.prof(rec.p), recipeTitle(names, rid) .. " " .. L.paren(itemName(names, itemId), qty))
+        local t = tiers and tiers[rec.t or -1]
+        if t and t.cur == false and t.name then text = text .. L.OPEN .. t.name .. L.CLOSE end
         -- 沒開過該專業視窗：不知道學了沒（nil），並記下要提示
         local learned
         if opened[tostring(rec.p)] then
-          learned = (rec.spell and known[tostring(rec.spell)]) and true or false
+          learned = ns.Index.learned(rec, known)
         elseif not missing[rec.p] then
           missing[rec.p] = true
           missingOrder[#missingOrder + 1] = names.prof(rec.p)
@@ -60,9 +81,15 @@ function Format.shiftLines(itemId, char, names, max)
   return { lines = out, more = more, empty = (#out == 0) and L.SHIFT_EMPTY or nil, notOpened = notOpened }
 end
 
+-- 正式版配方沒有技能點數資料：回 nil（不顯示「技能 ?」）；永恆維持「技能 ?」提示去訓練師補資料
 local function skillText(rid)
   local s = rid and ns.Index.skillOf(rid)
+  if not s and ns.Flavor and ns.Flavor.isRetail() then return nil end
   return L.SKILL .. " " .. (s and tostring(s) or "?")
+end
+local function profSkill(names, prof, rid)
+  local sk = skillText(rid)
+  return sk and L.paren(names.prof(prof), sk) or names.prof(prof)
 end
 
 -- 清單的第一層材料：「細線（1）、紅色染料（1）」（使用者：數量用括號，不用 ×）
@@ -79,7 +106,7 @@ function Format.treeTooltip(res, names, maxRows)
   local root = res.root
   local title = L.paren(root.item and itemName(names, root.item) or recipeTitle(names, root.recipe), root.n)
   lines[#lines + 1] = { text = title, title = true, item = root.item }
-  if root.prof then lines[#lines + 1] = { text = L.paren(names.prof(root.prof), skillText(root.recipe)) } end
+  if root.prof then lines[#lines + 1] = { text = profSkill(names, root.prof, root.recipe) } end
   if #res.totals > 0 then
     local parts = {}
     for i, t in ipairs(res.totals) do parts[i] = L.paren(itemName(names, t.item), t.n) end
@@ -96,7 +123,7 @@ function Format.treeTooltip(res, names, maxRows)
       if rows < maxRows then
         rows = rows + 1
         local text = prefix .. (last and "└ " or "├ ") .. L.paren(itemName(names, child.item), child.n)
-        if child.recipe then text = text .. "  " .. L.paren(names.prof(child.prof), skillText(child.recipe)) end
+        if child.recipe then text = text .. "  " .. profSkill(names, child.prof, child.recipe) end
         lines[#lines + 1] = { text = text, tree = true, item = child.item }
       else
         hidden = hidden + 1

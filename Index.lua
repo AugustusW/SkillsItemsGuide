@@ -5,23 +5,48 @@ local Index = {}
 ns.Index = Index
 
 local usedBy, madeBy, counts, cyclic
+local canon = {} -- 正式版：同一材料槽的各品質物品 → canonical（最低品質那個）
+
+function Index.canonical(itemId) return canon[itemId] or itemId end
+
+-- 配方學了沒：正式版分級配方（spells 有 1–3 級）學了任一級就算；known 的鍵可以是數字或字串
+function Index.learned(rec, known)
+  if not (rec and known) then return false end
+  for _, sp in ipairs(rec.spells or { rec.spell }) do
+    if known[sp] or known[tostring(sp)] then return true end
+  end
+  return false
+end
+
+-- 配方屬於舊資料片嗎（永恆資料沒有 tiers，一律當前）
+local function isOld(rec)
+  local t = rec.t and ns.Data.tiers and ns.Data.tiers[rec.t]
+  return t ~= nil and t.cur == false
+end
 
 function Index.build()
-  usedBy, madeBy, counts = {}, {}, {}
+  usedBy, madeBy, counts, canon = {}, {}, {}, {}
+  for c, group in pairs(ns.Data.slotGroups or {}) do
+    for _, id in ipairs(group) do canon[id] = c end
+  end
+  local C = Index.canonical
   for rid, rec in pairs(ns.Data.recipes or {}) do
     if rec.item then
-      madeBy[rec.item] = madeBy[rec.item] or {}
-      table.insert(madeBy[rec.item], rid)
+      local it = C(rec.item)
+      madeBy[it] = madeBy[it] or {}
+      table.insert(madeBy[it], rid)
     end
     local seen = {}
     for _, rg in ipairs(rec.r or {}) do
-      local item = rg[1]
+      local item = C(rg[1])
       if not seen[item] then
         seen[item] = true
         usedBy[item] = usedBy[item] or {}
         table.insert(usedBy[item], rid)
         counts[item] = counts[item] or {}
-        counts[item][rec.p] = (counts[item][rec.p] or 0) + 1
+        local c = counts[item][rec.p] or { n = 0, old = 0 }
+        if isOld(rec) then c.old = c.old + 1 else c.n = c.n + 1 end
+        counts[item][rec.p] = c
       end
     end
   end
@@ -86,16 +111,23 @@ function Index.findCycles()
   return out
 end
 
-function Index.cyclic(itemId) return cyclic ~= nil and cyclic[itemId] == true end
+function Index.cyclic(itemId) return cyclic ~= nil and cyclic[Index.canonical(itemId)] == true end
 
 local EMPTY = {}
-function Index.usedBy(itemId) return usedBy[itemId] or EMPTY end
-function Index.madeBy(itemId) return madeBy[itemId] or EMPTY end
+function Index.usedBy(itemId) return usedBy[Index.canonical(itemId)] or EMPTY end
+function Index.madeBy(itemId) return madeBy[Index.canonical(itemId)] or EMPTY end
 
+-- { {prof, n=當前資料片, old=舊資料片} }，依總數排序
 function Index.profCounts(itemId)
   local out = {}
-  for prof, n in pairs(counts[itemId] or EMPTY) do out[#out + 1] = { prof = prof, n = n } end
-  table.sort(out, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.prof < b.prof end)
+  for prof, c in pairs(counts[Index.canonical(itemId)] or EMPTY) do
+    out[#out + 1] = { prof = prof, n = c.n, old = c.old }
+  end
+  table.sort(out, function(a, b)
+    local ta, tb = a.n + a.old, b.n + b.old
+    if ta ~= tb then return ta > tb end
+    return a.prof < b.prof
+  end)
   return out
 end
 

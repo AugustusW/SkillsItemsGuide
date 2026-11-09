@@ -109,6 +109,7 @@ end
 
 ns.onLoad = ns.onLoad or {}
 table.insert(ns.onLoad, function()
+  if not ns.Flavor.isForever() then return end -- 正式版沒有職業技能分頁，不掃訓練師
   local f = CreateFrame("Frame")
   f:RegisterEvent("TRAINER_SHOW")
   f:RegisterEvent("TRAINER_UPDATE")
@@ -139,12 +140,18 @@ end
 function Scan.known()
   local ui = C_TradeSkillUI
   if not (ui and ui.GetAllRecipeIDs and ui.GetRecipeInfo) then return end
+  -- 開的是別人的專業（聊天連結、公會成員、製作訂單）：learned 描述的是對方，不能記成自己的（審查 2026-11-09）
+  for _, k in ipairs({ "IsTradeSkillLinked", "IsTradeSkillGuild", "IsNPCCrafting", "IsRuneforging" }) do
+    if ui[k] and ui[k]() then return end
+  end
   local char = SkillsItemsGuideCharDB
   char.known = char.known or {}
   char.opened = char.opened or {}
   -- 法術 id → 專業：用打包資料判斷這次開的是哪個專業（不需要額外 API）
   local profOf = {}
-  for _, rec in pairs((ns.Data and ns.Data.recipes) or {}) do if rec.spell then profOf[rec.spell] = rec.p end end
+  for _, rec in pairs((ns.Data and ns.Data.recipes) or {}) do
+    for _, sp in ipairs(rec.spells or { rec.spell }) do profOf[sp] = rec.p end
+  end
   for _, id in ipairs(ui.GetAllRecipeIDs() or {}) do
     -- 視窗列出的配方（不論學了沒）都代表這個專業開過；只學採集專業的角色也能消掉提示
     local p = profOf[id]
@@ -176,8 +183,16 @@ table.insert(ns.onLoad, function()
   f:RegisterEvent("SKILL_LINES_CHANGED")
   f:RegisterEvent("TRADE_SKILL_LIST_UPDATE")
   f:RegisterEvent("TRADE_SKILL_SHOW")
+  -- 正式版一個專業上千個配方、專業視窗事件很密：0.5 秒內合併成一次掃描
+  local pendingScan = false
+  local function knownSoon()
+    if not (ns.Flavor.isRetail() and C_Timer and C_Timer.After) then return Scan.known() end
+    if pendingScan then return end
+    pendingScan = true
+    C_Timer.After(0.5, function() pendingScan = false; Scan.known() end)
+  end
   f:SetScript("OnEvent", function(_, ev)
-    if ev == "PLAYER_LOGIN" or ev == "SKILL_LINES_CHANGED" then Scan.professions() else Scan.known() end
+    if ev == "PLAYER_LOGIN" or ev == "SKILL_LINES_CHANGED" then Scan.professions() else knownSoon() end
     if ev == "PLAYER_LOGIN" then Scan.remindUnopened() end
   end)
 end)

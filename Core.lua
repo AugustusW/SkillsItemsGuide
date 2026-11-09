@@ -49,7 +49,7 @@ end
 -- /sigcheck：客戶端回報的已學配方（法術 id）有多少對得上打包資料
 function ns.checkKnown()
   local bySpell = {}
-  for _, rec in pairs(ns.Data.recipes or {}) do if rec.spell then bySpell[rec.spell] = true end end
+  for _, rec in pairs(ns.Data.recipes or {}) do for _, sp in ipairs(rec.spells or { rec.spell }) do bySpell[sp] = true end end
   local total, matched, unmatched = 0, 0, {}
   for k in pairs((SkillsItemsGuideCharDB or {}).known or {}) do
     local id = tonumber(k)

@@ -1,4 +1,4 @@
-local FILES = { "Locale.lua", "Skills.lua" }
+local FILES = { "Locale.lua", "Flavor.lua", "Skills.lua" }
 H.reset()
 local ns = H.load(FILES)
 ns.Data = {

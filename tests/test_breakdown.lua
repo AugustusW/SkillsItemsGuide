@@ -1,4 +1,4 @@
-local FILES = { "Locale.lua", "Data/Professions.lua", "Data/ClassSkills.lua", "Data/Cache.lua", "Index.lua", "Breakdown.lua" }
+local FILES = { "Locale.lua", "Flavor.lua", "Data/Forever/Professions.lua", "Data/Forever/ClassSkills.lua", "Data/Forever/Cache.lua", "Index.lua", "Breakdown.lua" }
 H.reset()
 local ns = H.load(FILES)
 ns.Index.build()

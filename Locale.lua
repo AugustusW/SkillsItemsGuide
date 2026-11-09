@@ -4,6 +4,7 @@ local _, ns = ...
 local LOCALES = {}
 LOCALES.enUS = {
   OPEN = " (", CLOSE = ")", SEP = ", ", COLON = ": ",
+  WITH_OLD_FMT = "%d, %d older", OLD_ONLY_FMT = "%d older",
   PROBE_TITLE = "SkillsItemsGuide probe",
   PROBE_HINT = "Click the text, Ctrl+A then Ctrl+C to copy, paste it back. Esc closes. Then follow the click test steps below.",
   PROBE_CLICK_STEPS = "Click test: use a stack of grey junk. Alt+left-click it in your bag (1) with the chat box closed, (2) with the chat box open, (3) with a vendor open. Then type /sigprobe again.",
@@ -27,6 +28,7 @@ LOCALES.enUS = {
 }
 LOCALES.zhTW = {
   OPEN = "（", CLOSE = "）", SEP = "、", COLON = "：",
+  WITH_OLD_FMT = "%d，舊資料片 %d", OLD_ONLY_FMT = "舊資料片 %d",
   PROBE_TITLE = "SkillsItemsGuide 探測",
   PROBE_HINT = "點一下文字，按 Ctrl+A 再按 Ctrl+C 複製，貼回 Telegram。按 Esc 關閉。接著照下面的點擊測試做。",
   PROBE_CLICK_STEPS = "點擊測試：請用一疊灰色垃圾，在背包對它 Alt+左鍵：(1) 聊天框關著、(2) 聊天輸入框開著、(3) 商人視窗開著，各一次。做完再打一次 /sigprobe。",
@@ -63,9 +65,9 @@ ns.CLASS_TOKEN = CLASS_TOKEN
 local PROF = {
   enUS = { [129] = "First Aid", [164] = "Blacksmithing", [165] = "Leatherworking", [171] = "Alchemy", [182] = "Herbalism",
     [185] = "Cooking", [186] = "Mining", [197] = "Tailoring", [202] = "Engineering", [333] = "Enchanting",
-    [356] = "Fishing", [393] = "Skinning" },
+    [356] = "Fishing", [393] = "Skinning", [755] = "Jewelcrafting", [773] = "Inscription" },
   zhTW = { [129] = "急救", [164] = "鍛造", [165] = "製皮", [171] = "鍊金術", [182] = "草藥學", [185] = "烹飪",
-    [186] = "採礦", [197] = "裁縫", [202] = "工程學", [333] = "附魔", [356] = "釣魚", [393] = "剝皮" },
+    [186] = "採礦", [197] = "裁縫", [202] = "工程學", [333] = "附魔", [356] = "釣魚", [393] = "剝皮", [755] = "珠寶設計", [773] = "銘文學" },
 }
 ns.LOCALES = LOCALES
 
@@ -77,6 +79,9 @@ local L = setmetatable({}, { __index = function(_, k)
 end })
 
 function L.paren(name, n) return name .. L.OPEN .. tostring(n) .. L.CLOSE end
+-- 正式版計數：「12，舊資料片 40」「舊資料片 40」（括號由 L.paren 加）
+function L.withOld(n, old) return string.format(L.WITH_OLD_FMT, n, old) end
+function L.oldOnly(old) return string.format(L.OLD_ONLY_FMT, old) end
 function L.join(list) return table.concat(list, L.SEP) end
 function L.label(a, b) return a .. L.COLON .. b end
 function L.class(id)

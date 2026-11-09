@@ -32,8 +32,7 @@ function Breakdown.sortRecipes(list) table.sort(list, cmp) return list end
 local function choose(list, known)
   if known then
     for _, rid in ipairs(list) do
-      local sp = ns.Data.recipes[rid].spell
-      if sp and known[sp] then return rid end
+      if ns.Index.learned(ns.Data.recipes[rid], known) then return rid end
     end
   end
   for _, rid in ipairs(list) do
@@ -62,18 +61,21 @@ function Breakdown.build(recipeId, qty, known)
     local crafts = math.ceil(n / (rec.q or 1))
     addCd(rid, crafts)
     local node = { recipe = rid, item = rec.item, n = n, prof = rec.p, children = {} }
-    if rec.item then path[rec.item] = true end
+    local C = ns.Index.canonical
+    if rec.item then path[C(rec.item)] = true end
     for _, rg in ipairs(rec.r or {}) do
       local item, need = rg[1], rg[2] * crafts
       local makers = ns.Index.madeBy(item)
-      if #makers > 0 and not path[item] and not ns.Index.cyclic(item) then
-        node.children[#node.children + 1] = expand(choose(makers, known), need, path)
+      if #makers > 0 and not path[C(item)] and not ns.Index.cyclic(item) then
+        local child = expand(choose(makers, known), need, path)
+        child.item = item -- 正式版：做法產出可能是別的品質，樹上顯示配方要的那個（canonical）
+        node.children[#node.children + 1] = child
       else
         addTotal(item, need)
         node.children[#node.children + 1] = { item = item, n = need, children = {} }
       end
     end
-    if rec.item then path[rec.item] = nil end
+    if rec.item then path[C(rec.item)] = nil end
     return node
   end
 

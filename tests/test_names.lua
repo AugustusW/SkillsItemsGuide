@@ -1,10 +1,6 @@
 -- 使用者實測（2026-11-08）：裁縫清單很多品項是代碼、搜尋一直「名稱載入中…」
 -- 根因：每個物品只請求一次，沒回來（伺服器漏回、client 沒有這個物品）就永遠沒名稱，搜尋永遠 pending
-local files = {}
-for line in io.lines(H.dir .. "/SkillsItemsGuide.toc") do
-  line = line:gsub("\r", "")
-  if line ~= "" and not line:match("^#") then files[#files + 1] = line end
-end
+local files = H.tocFiles("SkillsItemsGuide_Forever.toc")
 
 local clientNames, requests, timers = {}, {}, {}
 local function boot(locale)

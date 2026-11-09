@@ -33,7 +33,13 @@ function Window.clampQty(v)
 end
 
 local function itemName(id) return ns.Names.item(id) end
-local function titleOf(rid) return ns.Format.recipeTitle(ns.Names, rid) end
+local function titleOf(rid)
+  local title = ns.Format.recipeTitle(ns.Names, rid)
+  -- 正式版：舊資料片的配方標資料片名稱（與 Shift 清單一致）
+  local t = ns.Data.tiers and ns.Data.tiers[ns.Data.recipes[rid].t or -1]
+  if t and t.cur == false and t.name then title = title .. L.OPEN .. t.name .. L.CLOSE end
+  return title
+end
 
 -- 搜尋：比對產物名與第一層材料名；有名稱還沒載入時標示 loading
 local function matches(rid, q)
@@ -123,25 +129,18 @@ local function isLearned(rid)
   local sp = ns.Data.recipes[rid].spell
   local char = SkillsItemsGuideCharDB or {}
   if not (char.opened or {})[tostring(ns.Data.recipes[rid].p)] then return nil end
-  return sp and (char.known or {})[tostring(sp)] and true or false
+  return sp and ns.Index.learned(ns.Data.recipes[rid], char.known or {}) or false
 end
 
-local function showTree(owner, rid)
-  if not GameTooltip then return end
-  local res = ns.Breakdown.build(rid, S.qty, knownSet())
+-- 配方圖示 tooltip 的拆解樹。遊戲會照 tooltip 資料重建（按 Shift 時的 RefreshData、物品資料載入後），
+-- 手動加在後面的行會被洗掉，所以拆解樹由物品／法術 post-call 補上（Tooltip.lua），每次重建都會再加一次。
+-- 沒有 TooltipDataProcessor 的 client 不會跑 post-call，就由 showTree 自己加。
+local tree = { owner = nil, rid = nil, added = false, native = false }
+
+local function appendTree(tooltip, native)
+  local res = ns.Breakdown.build(tree.rid, S.qty, knownSet())
   local tt = ns.Format.treeTooltip(res, ns.Names, 12)
-  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-  GameTooltip:ClearLines()
-  -- 使用者實測：只有拆解樹不夠，物品本身的資訊（屬性、類型、售價）最重要 → 先放遊戲原本的 tooltip
-  -- API 不存在時（永恆未必都有）退回只有拆解樹
-  local rec = ns.Data.recipes[rid]
-  local native = false
-  if rec.item and GameTooltip.SetItemByID then
-    GameTooltip:SetItemByID(rec.item); native = true
-  elseif not rec.item and rec.spell and GameTooltip.SetSpellByID then
-    GameTooltip:SetSpellByID(rec.spell); native = true
-  end
-  if native then GameTooltip:AddLine(" ") end
+  if native then tooltip:AddLine(" ") end
   for _, l in ipairs(tt.lines) do
     if not (native and l.title) then -- 已經有物品／法術 tooltip，不再重複成品名稱標題
       local c = { 1, 1, 1 }
@@ -151,11 +150,50 @@ local function showTree(owner, rid)
       elseif l.cooldown then c = { 1, 0.3, 0.3 }
       elseif l.materials then c = { 1, 0.82, 0 }
       elseif l.more or l.hint then c = GREY end
-      GameTooltip:AddLine(l.text, c[1], c[2], c[3], true)
+      tooltip:AddLine(l.text, c[1], c[2], c[3], true)
     end
   end
+  tree.added = true
+end
+
+-- post-call 用：這個 tooltip 現在是不是某個配方圖示的拆解 tooltip，是就補上拆解樹
+function Window.addTreeIfOwned(tooltip)
+  if tree.owner and tooltip.GetOwner and tooltip:GetOwner() == tree.owner then appendTree(tooltip, true) end
+end
+
+local function showTree(owner, rid)
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+  GameTooltip:ClearLines()
+  tree.owner, tree.rid, tree.added = owner, rid, false
+  -- 使用者實測：只有拆解樹不夠，物品本身的資訊（屬性、類型、售價）最重要 → 先放遊戲原本的 tooltip
+  -- API 不存在時（永恆未必都有）退回只有拆解樹
+  local rec = ns.Data.recipes[rid]
+  local native = false
+  if rec.item and GameTooltip.SetItemByID then
+    GameTooltip:SetItemByID(rec.item); native = true
+  elseif not rec.item and rec.spell and GameTooltip.SetSpellByID then
+    GameTooltip:SetSpellByID(rec.spell); native = true
+  end
+  tree.native = native
+  if not tree.added then appendTree(GameTooltip, native) end
   GameTooltip:Show()
 end
+
+-- 按 Shift 刷新用：沒有遊戲資料（沒有成品也沒有法術）的拆解 tooltip，RefreshData 只會清空，改成整個重畫
+function Window.refreshTree(tooltip)
+  if tree.owner and not tree.native and tooltip.GetOwner and tooltip:GetOwner() == tree.owner then
+    showTree(tree.owner, tree.rid)
+    return true
+  end
+  return false
+end
+
+local function hideTree()
+  tree.owner = nil
+  if GameTooltip then GameTooltip:Hide() end
+end
+Window._hideTree = hideTree
 Window.showTree = showTree
 
 local function iconOf(rid)
@@ -203,7 +241,7 @@ local function getRow(i)
   r.tree:SetWidth(TEXT_W)
   r.tree:SetWordWrap(true)
   r.icon:SetScript("OnEnter", function(self) showTree(self, r.rid) end)
-  r.icon:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  r.icon:SetScript("OnLeave", hideTree)
   r.icon:SetScript("OnClick", function()
     local rec = ns.Data.recipes[r.rid]
     if IsShiftKeyDown and IsShiftKeyDown() and rec.item and C_Item and C_Item.GetItemInfo and ChatEdit_InsertLink then
@@ -300,6 +338,7 @@ local function build()
   ui.tabSkill:SetPoint("LEFT", ui.tabProf, "RIGHT", 4, 0)
   ui.tabSkill:SetText(L.TAB_SKILL)
   ui.tabSkill:SetScript("OnClick", function() Window.setTab("skill") end)
+  if not ns.Flavor.isForever() then ui.tabSkill:Hide() end -- 正式版只做道具反查
 
   ui.prof = CreateFrame("Frame", nil, frame)
   ui.prof:SetPoint("TOPLEFT", 8, -56)
@@ -376,6 +415,7 @@ local function build()
 end
 
 function Window.setTab(tab)
+  if tab == "skill" and not ns.Flavor.isForever() then tab = "prof" end
   S.tab = tab
   if not frame then return end
   ui.prof:SetShown(tab == "prof")
@@ -468,3 +508,5 @@ table.insert(ns.onLoad, function()
   ns.registerSlash("SKILLSITEMSGUIDE", "/skillsitemsguide", Window.toggle)
   ns.registerSlash("SIG", "/sig", Window.toggle)
 end)
+
+function Window._ui() return ui end -- 測試用

@@ -18,6 +18,8 @@ function UI.collect()
   db.probe.build = table.concat({ GetBuildInfo() }, " ")
   db.probe.date = date("%Y-%m-%d %H:%M")
   db.manifest = ns.Probe.manifest()
+  db.probe.behavior = ns.Probe.behavior()
+  db.probe.projectId = WOW_PROJECT_ID
 end
 
 function UI.recordClick(c)
@@ -43,6 +45,13 @@ function UI.text()
   for kind, list in pairs(m.methods or {}) do lines[#lines + 1] = "methods " .. kind .. ": " .. #list end
   for ch, w in pairs(p.glyphs or {}) do lines[#lines + 1] = "glyph " .. ch .. " width " .. tostring(w) end
   lines[#lines + 1] = "MODIFIER_STATE_CHANGED fired: " .. tostring(p.modEvents or 0)
+  local b = p.behavior or {}
+  lines[#lines + 1] = "WOW_PROJECT_ID " .. tostring(p.projectId) .. " / recipes " .. tostring(b.recipeCount)
+    .. " / learned " .. tostring(b.learnedCount)
+  for _, s in ipairs(b.samples or {}) do
+    lines[#lines + 1] = string.format("recipe %s learned=%s playerSpell=%s spellKnown=%s", tostring(s.id),
+      tostring(s.learned), tostring(s.isPlayerSpell), tostring(s.isSpellKnown))
+  end
   for i, c in ipairs(p.clicks or {}) do
     lines[#lines + 1] = string.format("click %d: shift=%s alt=%s merchant=%s split=%s chat=%q sold=%s hook=%s",
       i, tostring(c.shift), tostring(c.alt), tostring(c.merchant), tostring(c.split), c.chat or "", tostring(c.sold), tostring(c.hook))

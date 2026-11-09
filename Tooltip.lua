@@ -36,6 +36,7 @@ end
 local function refresh()
   local tt = GameTooltip
   if not (tt and tt:IsShown()) then return end
+  if ns.Window and ns.Window.refreshTree and ns.Window.refreshTree(tt) then return end
   if tt.RefreshData then
     tt:RefreshData()
   else
@@ -50,7 +51,13 @@ table.insert(ns.onLoad, function()
   if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
       Tooltip.add(tooltip, data and data.id)
+      if ns.Window and ns.Window.addTreeIfOwned then ns.Window.addTreeIfOwned(tooltip) end
     end)
+    if Enum.TooltipDataType.Spell then
+      TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function(tooltip)
+        if ns.Window and ns.Window.addTreeIfOwned then ns.Window.addTreeIfOwned(tooltip) end
+      end)
+    end
   end
   local f = CreateFrame("Frame")
   f:RegisterEvent("MODIFIER_STATE_CHANGED")

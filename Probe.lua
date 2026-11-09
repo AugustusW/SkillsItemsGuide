@@ -17,6 +17,10 @@ Probe.APIS = {
   "ChatEdit_GetActiveWindow", "GetBuildInfo", "C_AddOns.GetAddOnMetadata", "IsShiftKeyDown", "IsAltKeyDown",
   "ContainerFrameItemButton_OnModifiedClick", "ContainerFrameItemButtonMixin", "HandleModifiedItemClick",
   "StackSplitFrame", "GetMoney", "MerchantFrame", "C_Container.GetContainerItemInfo", "Enum.TooltipDataType",
+  -- 正式版（plan Task 2）
+  "WOW_PROJECT_ID", "C_TradeSkillUI.GetChildProfessionInfo", "C_TradeSkillUI.GetBaseProfessionInfo",
+  "C_TradeSkillUI.GetProfessionInfoBySkillLineID", "C_Item.GetItemNameByID", "C_Item.RequestLoadItemDataByID",
+  "GameTooltip.SetItemByID", "GameTooltip.SetSpellByID", "InCombatLockdown", "C_Timer.After",
 }
 
 Probe.TEMPLATES = {
@@ -86,4 +90,35 @@ function Probe.glyphs()
     if fs.SetText and fs.GetStringWidth then fs:SetText(ch); w[ch] = fs:GetStringWidth() end
   end
   return w
+end
+
+-- 行為探測（不只存在與否）：開著專業視窗時 GetAllRecipeIDs 回幾筆、learned 欄位、recipeID 是否就是 spellID
+function Probe.behavior()
+  local b = {}
+  local ui = C_TradeSkillUI
+  if not (ui and ui.GetAllRecipeIDs) then return b end
+  local ok, ids = pcall(ui.GetAllRecipeIDs)
+  if not ok or type(ids) ~= "table" then return b end
+  b.recipeCount = #ids
+  -- 已學的優先取樣（未學的看不出 recipeID 是否等於 spellID），再補一筆未學的當對照
+  local learned, unlearned = {}, {}
+  for _, id in ipairs(ids) do
+    local info = ui.GetRecipeInfo and ui.GetRecipeInfo(id) or {}
+    if info.learned then learned[#learned + 1] = id elseif #unlearned < 1 then unlearned[#unlearned + 1] = id end
+  end
+  b.learnedCount = #learned
+  local pick = {}
+  for i = 1, math.min(3, #learned) do pick[#pick + 1] = learned[i] end
+  for _, id in ipairs(unlearned) do pick[#pick + 1] = id end
+  b.samples = {}
+  for i, id in ipairs(pick) do
+    local info = ui.GetRecipeInfo and ui.GetRecipeInfo(id) or {}
+    b.samples[i] = {
+      id = id,
+      learned = info.learned,
+      isPlayerSpell = IsPlayerSpell and IsPlayerSpell(id) or false,
+      isSpellKnown = IsSpellKnown and IsSpellKnown(id) or false,
+    }
+  end
+  return b
 end

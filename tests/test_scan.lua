@@ -1,4 +1,4 @@
-local FILES = { "Locale.lua", "Data/Professions.lua", "Data/ClassSkills.lua", "Core.lua", "Scan.lua" }
+local FILES = { "Locale.lua", "Flavor.lua", "Data/Forever/Professions.lua", "Data/Forever/ClassSkills.lua", "Core.lua", "Scan.lua" }
 
 -- 假的訓練師：3 個服務，各有篩選狀態
 local function trainerAPI(kind, filters)

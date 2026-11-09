@@ -1,4 +1,4 @@
-local FILES = { "Locale.lua", "Data/Professions.lua", "Data/ClassSkills.lua", "Data/Cache.lua", "Index.lua", "Breakdown.lua", "Format.lua" }
+local FILES = { "Locale.lua", "Flavor.lua", "Data/Forever/Professions.lua", "Data/Forever/ClassSkills.lua", "Data/Forever/Cache.lua", "Index.lua", "Breakdown.lua", "Format.lua" }
 local PROF_ZH = { [202] = "工程學", [164] = "鍛造", [129] = "急救", [197] = "裁縫" }
 local PROF_EN = { [202] = "Engineering", [164] = "Blacksmithing", [129] = "First Aid", [197] = "Tailoring" }
 local ITEM = { [2589] = "亞麻布", [2996] = "亞麻布卷", [1251] = "亞麻繃帶", [2581] = "厚亞麻繃帶", [5762] = "紅色亞麻包",

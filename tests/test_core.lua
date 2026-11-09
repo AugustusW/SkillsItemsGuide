@@ -1,4 +1,4 @@
-local FILES = { "Locale.lua", "Probe.lua", "ProbeUI.lua", "Core.lua" }
+local FILES = { "Locale.lua", "Flavor.lua", "Probe.lua", "ProbeUI.lua", "Core.lua" }
 
 -- 語系：標點跟著語系走
 H.reset({ locale = "zhTW" })

@@ -13,7 +13,8 @@ function H.eq(a, b, msg)
   H.check(a == b, msg .. "（期望 " .. tostring(b) .. "，得到 " .. tostring(a) .. "）")
 end
 
-local manifest = dofile(H.dir .. "/tests/api_manifest.lua")
+local DEFAULT_MANIFEST = dofile(H.dir .. "/tests/api_manifest.lua")
+local manifest = DEFAULT_MANIFEST
 H.manifest = manifest
 
 -- 依白名單建立假 widget：只有清單內的方法存在
@@ -65,6 +66,9 @@ H.widget = widget
 H.frames = {}
 function H.reset(opts)
   opts = opts or {}
+  -- 正式版用 tests/api_manifest_retail.lua；不指定時回到永恆白名單
+  manifest = opts.manifest and dofile(H.dir .. "/tests/" .. opts.manifest) or DEFAULT_MANIFEST
+  H.manifest = manifest
   H.frames = {}
   H.focus = nil
   SkillsItemsGuideDB, SkillsItemsGuideCharDB = nil, nil
@@ -96,6 +100,7 @@ function H.reset(opts)
     tinsert = table.insert,
     time = os.time,
   }
+  if opts.projectId then api.WOW_PROJECT_ID = opts.projectId end
   for k, v in pairs(opts.extra or {}) do api[k] = v end
   for k, v in pairs(api) do
     if (manifest.globals[k] or k == "print" or k == "date" or k == "time") and not (opts.missing or {})[k] then
@@ -103,6 +108,16 @@ function H.reset(opts)
     end
   end
   for k in pairs(opts.slashTaken or {}) do _G.hash_SlashCmdList[k] = true end
+end
+
+-- 讀 toc 的檔案清單（多版本 TOC：SkillsItemsGuide_Forever.toc／_Mainline.toc）
+function H.tocFiles(name)
+  local files = {}
+  for line in io.lines(H.dir .. "/" .. name) do
+    line = line:gsub("\r", "")
+    if line ~= "" and not line:match("^#") then files[#files + 1] = line end
+  end
+  return files
 end
 
 -- 依 toc 順序載入 addon 檔案，回傳共用 ns

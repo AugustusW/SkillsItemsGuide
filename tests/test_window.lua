@@ -1,8 +1,4 @@
-local files = {}
-for line in io.lines(H.dir .. "/SkillsItemsGuide.toc") do
-  line = line:gsub("\r", "")
-  if line ~= "" and not line:match("^#") then files[#files + 1] = line end
-end
+local files = H.tocFiles("SkillsItemsGuide_Forever.toc")
 local NAMES = { [2589] = "亞麻布", [2996] = "亞麻布卷", [5762] = "紅色亞麻包", [2321] = "細線", [2604] = "紅色染料" }
 local cached = {}
 local function boot(locale)

@@ -1,8 +1,4 @@
-local files = {}
-for line in io.lines(H.dir .. "/SkillsItemsGuide.toc") do
-  line = line:gsub("\r", "")
-  if line ~= "" and not line:match("^#") then files[#files + 1] = line end
-end
+local files = H.tocFiles("SkillsItemsGuide_Forever.toc")
 local known = { [133] = true }
 H.reset({ locale = "zhTW", extra = {
   UnitClass = function() return "法師", "MAGE", 8 end,
