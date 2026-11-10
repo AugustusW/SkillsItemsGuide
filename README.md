@@ -48,6 +48,8 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 
 作者 AugustusW，問題與建議請寄 support@augustusw.com。
 
+遇到問題時輸入 `/sig errors`，按「全選」後用 Ctrl+C 複製，把內容一起寄來會比較好查。紀錄只存在本機（最近 20 種錯誤，不含角色與帳號名稱），插件不會連網。
+
 ## 資料來源與版本
 
 - 永恆專業：官方 Web API（`static-1.60.1_70399-forever-tw`），經 `tools/build_data.py professions` 產生

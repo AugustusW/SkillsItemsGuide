@@ -63,6 +63,10 @@ local function widget(kind)
 end
 H.widget = widget
 
+-- 探測傾印沒有列到、但遊戲內確認存在的全域（ErrProbe 2026-11-10，兩個版本）
+local NOT_IN_MANIFEST = { print = true, date = true, time = true, seterrorhandler = true, geterrorhandler = true,
+  debugstack = true, GetTime = true, StaticPopup_Show = true, StaticPopupDialogs = true }
+
 H.frames = {}
 function H.reset(opts)
   opts = opts or {}
@@ -103,7 +107,7 @@ function H.reset(opts)
   if opts.projectId then api.WOW_PROJECT_ID = opts.projectId end
   for k, v in pairs(opts.extra or {}) do api[k] = v end
   for k, v in pairs(api) do
-    if (manifest.globals[k] or k == "print" or k == "date" or k == "time") and not (opts.missing or {})[k] then
+    if (manifest.globals[k] or NOT_IN_MANIFEST[k]) and not (opts.missing or {})[k] then
       _G[k] = v; H.installed[k] = true
     end
   end

@@ -1,4 +1,4 @@
-local FILES = { "Locale.lua", "Flavor.lua", "Data/Forever/Professions.lua", "Data/Forever/ClassSkills.lua", "Core.lua", "Scan.lua" }
+local FILES = { "ErrorLog.lua", "Locale.lua", "Flavor.lua", "Data/Forever/Professions.lua", "Data/Forever/ClassSkills.lua", "Core.lua", "Scan.lua" }
 
 -- 假的訓練師：3 個服務，各有篩選狀態
 local function trainerAPI(kind, filters)
@@ -191,3 +191,30 @@ ns = H.load(FILES)
 H.fire("ADDON_LOADED", "SkillsItemsGuide")
 H.fire("TRADE_SKILL_SHOW")
 H.check(SkillsItemsGuideCharDB.opened["197"] == true, "沒有已學配方時，依視窗列出的配方標記開過")
+
+-- 讀取訓練師資料出錯：寫進錯誤紀錄（不跳錯誤視窗），而且一定還原玩家的篩選
+do
+  local fs = { available = true, unavailable = false, used = false }
+  local api = trainerAPI("class", fs)
+  api.GetNumTrainerServices = function() error("trainer api broke", 0) end
+  H.reset({ extra = api })
+  dofile(H.dir .. "/tests/fixtures/sv_sample.lua")
+  local n = H.load(FILES)
+  H.fire("ADDON_LOADED", "SkillsItemsGuide")
+  H.fire("TRAINER_SHOW")
+  H.eq(n.ErrorLog.entries()[1] and n.ErrorLog.entries()[1].msg, "trainer api broke", "讀取失敗寫進錯誤紀錄")
+  H.check(fs.available == true and fs.unavailable == false and fs.used == false, "讀取失敗仍還原篩選")
+end
+
+-- ErrorLog 載入失敗時主功能不受影響：仍然讀取並還原篩選
+do
+  local fs = { available = true, unavailable = false, used = false }
+  H.reset({ extra = trainerAPI("class", fs) })
+  dofile(H.dir .. "/tests/fixtures/sv_sample.lua")
+  local noLog = {}
+  for i = 2, #FILES do noLog[#noLog + 1] = FILES[i] end
+  H.load(noLog)
+  H.fire("ADDON_LOADED", "SkillsItemsGuide")
+  H.fire("TRAINER_SHOW")
+  H.check(fs.available == true and fs.unavailable == false and fs.used == false, "沒有 ErrorLog 仍還原篩選")
+end

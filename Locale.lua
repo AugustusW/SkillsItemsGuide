@@ -3,6 +3,9 @@ local _, ns = ...
 
 local LOCALES = {}
 LOCALES.enUS = {
+  ERRORS_TITLE = "SkillsItemsGuide: Error log", ERRORS_HINT = "Click the text, press Ctrl+A then Ctrl+C to copy, and paste it when reporting a problem.",
+  ERRORS_EMPTY = "No errors recorded.", ERRORS_SELECT_ALL = "Select all", ERRORS_CLEAR = "Clear log",
+  ERRORS_CLEAR_CONFIRM = "Clear all error records?\nThis cannot be undone. Copy the log first if a problem needs reporting.", ERRORS_CLEAR_OK = "Clear", ERRORS_CANCEL = "Cancel",
   OPEN = " (", CLOSE = ")", SEP = ", ", COLON = ": ",
   WITH_OLD_FMT = "%d, %d older", OLD_ONLY_FMT = "%d older",
   PROBE_TITLE = "SkillsItemsGuide probe",
@@ -28,6 +31,9 @@ LOCALES.enUS = {
   CHECK_FMT = "SkillsItemsGuide: client reports %d learned recipes, %d match the bundled data",
 }
 LOCALES.zhTW = {
+  ERRORS_TITLE = "技能物品指南：錯誤紀錄", ERRORS_HINT = "點一下文字，按 Ctrl+A 再按 Ctrl+C 複製，回報問題時貼上。",
+  ERRORS_EMPTY = "目前沒有錯誤紀錄。", ERRORS_SELECT_ALL = "全選", ERRORS_CLEAR = "清除紀錄",
+  ERRORS_CLEAR_CONFIRM = "確定要清除全部錯誤紀錄嗎？\n清除後無法復原，回報問題前請先複製。", ERRORS_CLEAR_OK = "清除", ERRORS_CANCEL = "取消",
   OPEN = "（", CLOSE = "）", SEP = "、", COLON = "：",
   WITH_OLD_FMT = "%d，舊資料片 %d", OLD_ONLY_FMT = "舊資料片 %d",
   PROBE_TITLE = "SkillsItemsGuide 探測",

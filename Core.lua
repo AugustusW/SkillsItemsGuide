@@ -68,6 +68,12 @@ function ns.trainerDebugText()
     tostring(d.matched), tostring(d.saved), tostring(d.err))
 end
 
+-- /sig errors test：放在 ErrorLog.lua 之外，因為堆疊過濾會排除 ErrorLog.lua 自身的行
+function ns.errorLogSelfTest()
+  C_Timer.After(0, function() error("SkillsItemsGuide error log self test") end)
+  C_Timer.After(0.1, function() if Mixin then Mixin(nil, { a = 1 }) end end) -- 錯誤發生在內建函式，訊息不含路徑
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(_, ev, name)

@@ -73,7 +73,7 @@ function Scan.trainer(event)
   for _, f in ipairs(FILTERS) do saved[f] = GetTrainerServiceTypeFilter(f) and true or false end
   for _, f in ipairs(FILTERS) do SetTrainerServiceTypeFilter(f, true) end
   -- 讀取包在 pcall 裡：中途出錯也一定還原使用者的篩選
-  local ok, rows = pcall(readServices)
+  local ok, rows = (ns.ErrorLog and ns.ErrorLog.try or pcall)(readServices)
   local isProf = IsTradeskillTrainer and IsTradeskillTrainer()
   local key = isProf and professionId() or nil
   for _, f in ipairs(FILTERS) do SetTrainerServiceTypeFilter(f, saved[f]) end
