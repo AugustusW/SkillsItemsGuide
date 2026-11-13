@@ -4,6 +4,22 @@ local _, ns = ...
 local Skills = {}
 ns.Skills = Skills
 
+Skills.CLASS_ORDER = { 1, 2, 3, 4, 5, 7, 8, 9, 11 }
+
+-- 自己的角色學了沒（職業技能分頁與法術分頁共用）
+function Skills.isKnown(id)
+  if IsPlayerSpell and IsPlayerSpell(id) then return true end
+  return IsSpellKnown and IsSpellKnown(id) or false
+end
+
+-- 自己職業的 opts（含已學判斷）；別的職業只列等級
+function Skills.optsFor(classId, extra)
+  local own = classId == select(3, UnitClass("player"))
+  local o = { own = own, level = UnitLevel and UnitLevel("player") or 0, isKnown = own and Skills.isKnown or nil }
+  for k, v in pairs(extra or {}) do o[k] = v end
+  return o, own
+end
+
 -- opts = { own=bool, level=n, isKnown=fn(spellId)->bool, show={learned=,available=,tooLow=}, match=fn(spellId)->bool }
 function Skills.list(classId, opts)
   opts = opts or {}

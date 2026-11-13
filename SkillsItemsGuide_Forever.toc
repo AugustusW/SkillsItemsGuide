@@ -3,7 +3,7 @@
 ## Title-zhTW: 技能物品指南
 ## Notes: Material reverse lookup, recipe breakdown and class skill levels, offline. Support: support@augustusw.com
 ## Notes-zhTW: 材料反查、配方拆解與職業技能等級查詢（離線資料）。問題回報：support@augustusw.com
-## Version: 0.3.0
+## Version: 0.4.0
 ## Author: AugustusW
 ## X-Email: support@augustusw.com
 ## IconTexture: Interface\AddOns\SkillsItemsGuide\Media\icon
@@ -21,6 +21,7 @@ Flavor.lua
 Data/Forever/Professions.lua
 Data/Forever/ClassSkills.lua
 Data/Forever/Cache.lua
+Data/Forever/Items.lua
 Index.lua
 Breakdown.lua
 Format.lua
@@ -33,3 +34,5 @@ Scan.lua
 Tooltip.lua
 Window.lua
 SkillTab.lua
+DbIndex.lua
+DbTab.lua

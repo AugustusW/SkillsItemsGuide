@@ -9,7 +9,7 @@ ns.SkillTab = SkillTab
 local STATUS_COLOR = { learned = { 0.6, 0.6, 0.6 }, available = { 0.25, 1, 0.25 }, tooLow = { 1, 0.3, 0.3 },
   other = { 0.5, 0.5, 0.5 } }
 local STATUS_LABEL = { learned = "SHOW_LEARNED", available = "SHOW_AVAILABLE", tooLow = "SHOW_TOOLOW", other = "NOT_TRAINER" }
-local CLASS_ORDER = { 1, 2, 3, 4, 5, 7, 8, 9, 11 }
+local CLASS_ORDER = ns.Skills.CLASS_ORDER
 
 local S = { show = {}, rowCount = 0 }
 function SkillTab.state() return S end
@@ -37,16 +37,16 @@ local function compute()
   local q = S.search
   local match
   if q and q ~= "" then match = function(id) local n = spellName(id) return n ~= nil and n:find(q, 1, true) ~= nil end end
-  local res = ns.Skills.list(S.classId, {
-    own = own, level = playerLevel(), show = S.show, match = match,
-    isKnown = own and function(id)
-      if IsPlayerSpell and IsPlayerSpell(id) then return true end
-      return IsSpellKnown and IsSpellKnown(id) or false
-    end or nil,
-  })
+  local res = ns.Skills.list(S.classId, (ns.Skills.optsFor(S.classId, { show = S.show, match = match })))
   S.own, S.result = own, res
   S.checksEnabled = own and (IsSpellKnown ~= nil or IsPlayerSpell ~= nil)
   S.scrollTo = res.scrollTo
+  -- 法術分頁跳過來：捲到該法術的等級組（別的職業原本沒有 scrollTo 也適用）
+  if S.focusSpell then
+    for _, g in ipairs(res.groups) do
+      for _, r in ipairs(g.rows) do if r.spell == S.focusSpell then S.scrollTo = g.lv end end
+    end
+  end
   local n = 0
   for _, g in ipairs(res.groups) do n = n + #g.rows end
   S.rowCount = n
@@ -74,6 +74,10 @@ local function line(i)
   r.text:SetJustifyH("LEFT")
   r.cost = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   r.cost:SetPoint("RIGHT", -6, 0)
+  r.hl = r:CreateTexture(nil, "BACKGROUND")
+  r.hl:SetAllPoints()
+  r.hl:SetColorTexture(1, 0.82, 0, 0.18)
+  r.hl:Hide()
   r:SetScript("OnEnter", function(self)
     if self.spell and GameTooltip and GameTooltip.SetSpellByID then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -83,8 +87,8 @@ local function line(i)
   end)
   r:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
   r:SetScript("OnClick", function(self)
-    if self.spell and IsShiftKeyDown and IsShiftKeyDown() and C_Spell and C_Spell.GetSpellLink and ChatEdit_InsertLink then
-      local link = C_Spell.GetSpellLink(self.spell)
+    if self.spell and IsShiftKeyDown and IsShiftKeyDown() and ChatEdit_InsertLink then
+      local link = ns.Names.spellLink(self.spell)
       if link then ChatEdit_InsertLink(link) end
     end
   end)
@@ -110,6 +114,7 @@ function SkillTab.render()
     h.spell = nil
     h.icon:Hide()
     h.cost:SetText("")
+    h.hl:Hide()
     local title = string.format(L.LV_FMT, g.lv) .. (g.tag == "current" and L.LV_CURRENT or g.tag == "next" and L.LV_NEXT or "")
     h.text:SetText(title)
     h.text:SetTextColor(1, 0.82, 0)
@@ -129,6 +134,7 @@ function SkillTab.render()
       local col = r.status and STATUS_COLOR[r.status] or { 1, 1, 1 }
       row.text:SetTextColor(col[1], col[2], col[3])
       row.cost:SetText(SkillTab.costText(r.cost))
+      if S.focusSpell ~= nil and r.spell == S.focusSpell then row.hl:Show() else row.hl:Hide() end
       row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -y); row:Show()
       y = y + 24
     end
@@ -147,6 +153,7 @@ function SkillTab.refreshDropdown()
 end
 
 function SkillTab.selectClass(classId)
+  S.focusSpell = nil
   if classId ~= S.classId then S.show = {} end -- 換職業清掉勾選（看別的職業時勾選本來就不作用）
   S.classId = classId
   compute()
@@ -155,6 +162,7 @@ function SkillTab.selectClass(classId)
 end
 
 function SkillTab.setShow(show)
+  S.focusSpell = nil
   S.show = show or {}
   compute()
   SkillTab.render()
@@ -203,7 +211,11 @@ local function build(container)
   ui.search:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
   ui.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
   ui.search:SetScript("OnHide", function(self) self:ClearFocus() end)
-  ui.search:SetScript("OnTextChanged", function(self) S.search = self:GetText(); compute(); SkillTab.render() end)
+  ui.search:SetScript("OnTextChanged", function(self)
+    if S.suppress then return end
+    S.search, S.focusSpell = self:GetText(), nil
+    compute(); SkillTab.render()
+  end)
   -- 三個勾選依前一個文字的實際寬度往右排、間距相同（實測：固定 130px 時長標籤會擠到下一個）
   local prev
   for _, key in ipairs({ "learned", "available", "tooLow" }) do
@@ -216,7 +228,7 @@ local function build(container)
     local col = STATUS_COLOR[key]
     t:SetTextColor(col[1], col[2], col[3])
     cb:SetScript("OnClick", function(self)
-      S.show[key] = self:GetChecked() and true or nil
+      S.show[key], S.focusSpell = self:GetChecked() and true or nil, nil
       compute(); SkillTab.render()
     end)
     ui.checks[key] = cb
@@ -238,10 +250,24 @@ local function build(container)
   ui.empty:SetPoint("TOPLEFT", 20, -90)
 end
 
-ns.Window.onBuild = build
-ns.Window.onSkillTab = function()
+-- 法術分頁跳過來：選職業、清掉勾選與搜尋、捲到並標亮該法術（換職業、勾選或搜尋時取消）
+function SkillTab.focus(classId, spell)
+  S.classId, S.show, S.search, S.focusSpell = classId, {}, nil, spell
+  if ui and ui.search then
+    S.suppress = true
+    ui.search:SetText("")
+    S.suppress = false
+  end
+  if panel then ns.Window.setTab("skill") else ns.Window.open({ tab = "skill" }) end
+  SkillTab.refreshDropdown()
+end
+
+function SkillTab._lines() return lines end -- 測試用
+function SkillTab._ui() return ui end -- 測試用
+
+ns.Window.registerTab("skill", L.TAB_SKILL, build, function()
   if not S.classId then S.classId = playerClass() end
   compute()
   SkillTab.render()
   SkillTab.refreshDropdown()
-end
+end)

@@ -30,9 +30,10 @@ local function fallback(id)
   -- 打包的是官方 API 的 zh_TW 名稱，只在繁中 client 用
   if GetLocale and GetLocale() == "zhTW" then
     local t = ns.Data and ns.Data.itemNames
-    return t and t[id] or nil
+    if t and t[id] then return t[id] end
   end
-  return nil
+  -- 永恆全部物品（繁中／英文名稱，物品分頁的資料）
+  return ns.DbIndex and ns.DbIndex.bundledName(id) or nil
 end
 
 function Names.item(id)
@@ -69,4 +70,14 @@ function Names.recipe(rid)
   local rec = ns.Data.recipes[rid]
   local sp = rec and rec.spell
   return sp and C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(sp) or nil
+end
+
+-- 法術連結：C_Spell.GetSpellLink 的名稱帶等級（「英勇打擊 (等級 1)」），送出後伺服器不認、變純文字；
+-- 技能書送的可以點（使用者 2026-11-13 實測）→ 只把方括號內換成法術名，其他照遊戲給的格式
+function Names.spellLink(id)
+  local link = C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(id)
+  if not link then return nil end
+  local name = C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+  if not name then return link end
+  return (link:gsub("%[.-%]", "[" .. name:gsub("%%", "%%%%") .. "]", 1))
 end

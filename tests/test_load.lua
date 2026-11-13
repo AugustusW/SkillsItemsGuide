@@ -32,8 +32,13 @@ for _, f in ipairs(rfiles) do H.check(not f:find("ClassSkills") and not f:find("
   "正式版 TOC 不列職業技能相關檔：" .. f) end
 if okR then
   nsR.Window.open({})
-  local tab = nsR.Window._ui and nsR.Window._ui().tabSkill
-  H.check(tab == nil or not tab:IsShown(), "正式版完整視窗不顯示職業技能分頁按鈕")
+  H.eq(nsR.Window._ui().tabs.skill, nil, "正式版完整視窗沒有職業技能分頁按鈕")
+  H.eq(nsR.Window._ui().tabs.item, nil, "正式版完整視窗沒有物品分頁按鈕")
+  local okT, errT = pcall(nsR.Window.setTab, "item")
+  H.check(okT and nsR.Window.state().tab == "prof", "正式版切物品分頁回到專業：" .. tostring(errT))
+  local anyRid = next(nsR.Data.recipes)
+  local okRc, errRc = pcall(nsR.Window.open, { recipe = anyRid })
+  H.check(okRc and #nsR.Window.state().list == 1, "正式版單一配方模式可用：" .. tostring(errRc))
 end
 H.eq(nsR and nsR.L and nsR.L.prof(773), "銘文學", "正式版專業名稱：銘文學")
 H.eq(nsR and nsR.L and nsR.L.prof(755), "珠寶設計", "正式版專業名稱：珠寶設計")

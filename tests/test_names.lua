@@ -36,9 +36,11 @@ H.eq(ns.Names.item(ID), ns.Data.itemNames and ns.Data.itemNames[ID], "client 沒
 clientNames[ID] = "亞麻布（client）"
 H.eq(ns.Names.item(ID), "亞麻布（client）", "client 有名稱時優先用 client 的")
 
--- 2. 非繁中 client 不用中文備用名稱
+-- 2. 非繁中 client 不用中文備用名稱；英文 client 改用打包的英文名稱（0.4.0 起，物品分頁資料）
 ns = boot("enUS")
-H.eq(ns.Names.item(ID), nil, "英文 client 沒有名稱時不回中文備用")
+H.eq(ns.Names.item(ID), "Linen Cloth", "英文 client 沒有名稱時用打包英文名，不回中文")
+ns = boot("deDE")
+H.eq(ns.Names.item(ID), nil, "德文 client 沒有打包名稱時回 nil（不回中文）")
 
 -- 3. 沒回來的會重試，最多 3 次；之後不再算 pending
 ns = boot("enUS")
@@ -100,7 +102,7 @@ H.check(#ns.Window.state().list > 0, "繁中用打包名稱就搜得到「亞麻
 -- 7. 英文 client：名稱未快取時標題用佔位；有結果但仍有名稱在載入，結果照列、標題提示載入中
 ns = boot("enUS")
 ns.Window.open({ material = 2589 })
-H.eq(ns.Window.state().header, "Item #2589: used by 12 recipes", "英文名稱未快取時標題用佔位")
+H.eq(ns.Window.state().header, "Linen Cloth: used by 12 recipes", "英文名稱未快取時標題用打包英文名（0.4.0 前是 Item #2589 佔位）")
 clientNames[2589] = "Linen Cloth"
 SkillsItemsGuideCharDB = { professions = { ["197"] = true } }
 ns.Window.open({})
@@ -111,3 +113,19 @@ H.check(#st.list > 0, "已載入的名稱先列出結果")
 H.check(st.loading and st.header:find("Names loading", 1, true) ~= nil, "有結果但仍有名稱在載入時，標題提示載入中")
 for _ = 1, 6 do runTimers(); ns.Window.setSearch("Linen") end
 H.check(ns.Window.state().header:find("Names loading", 1, true) == nil, "重試用完後標題不再提示")
+
+-- 實測（2026-11-13）：C_Spell.GetSpellLink 的名稱帶「(等級 1)」，貼到對話送出後變純文字、不能點；
+-- 技能書送的可以點 → 連結名稱只放法術名
+H.reset({ locale = "zhTW", extra = {
+  C_Spell = { GetSpellName = function() return "英勇打擊" end,
+              GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. ":0|h[英勇打擊 (等級 1)]|h|r" end },
+} })
+local nsL = H.load({ "Locale.lua", "Names.lua" })
+H.eq(nsL.Names.spellLink(78), "|cff71d5ff|Hspell:78:0|h[英勇打擊]|h|r", "法術連結名稱不帶等級")
+H.reset({ locale = "zhTW", extra = { C_Spell = { GetSpellName = function() return "100%傷害" end,
+  GetSpellLink = function() return "|cff71d5ff|Hspell:1:0|h[x (等級 1)]|h|r" end } } })
+nsL = H.load({ "Locale.lua", "Names.lua" })
+H.eq(nsL.Names.spellLink(1), "|cff71d5ff|Hspell:1:0|h[100%傷害]|h|r", "名稱含 % 不出錯")
+H.reset({ locale = "zhTW", extra = { C_Spell = { GetSpellName = function() return nil end, GetSpellLink = function() return nil end } } })
+nsL = H.load({ "Locale.lua", "Names.lua" })
+H.eq(nsL.Names.spellLink(1), nil, "沒有連結時回 nil")

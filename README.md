@@ -1,6 +1,6 @@
 # SkillsItemsGuide（技能物品指南）
 
-An addon for **World of Warcraft: Forever** (Interface 16001) and **Retail** (Midnight, Interface 120105): material reverse lookup in tooltips and recipe breakdown trees with raw-material totals and cooldowns. Forever also has class skill levels with training costs. Data is bundled and works offline.
+An addon for **World of Warcraft: Forever** (Interface 16001) and **Retail** (Midnight, Interface 120105): material reverse lookup in tooltips and recipe breakdown trees with raw-material totals and cooldowns. Forever also has class skill levels with training costs, plus item and spell lookup tabs. Data is bundled and works offline.
 
 - Retail: 11,042 recipes across all expansions; quality tiers of the same reagent are merged into one entry, and recipes from older expansions are labeled.
 
@@ -33,6 +33,8 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 - `/sig` 或 `/skillsitemsguide`：開關完整視窗（指令被其他插件佔用時不註冊）
   - 專業分頁：搜尋、依專業瀏覽、數量、滑鼠移到圖示看拆解、「+」展開、Shift+點圖示貼連結
   - 職業技能分頁（永恆限定）：職業下拉、搜尋、已學會／可以學／等級還不到篩選、學費
+  - 物品分頁（永恆限定）：搜尋永恆全部物品（約 1.8 萬筆），依材料／成品、專業與物品類別篩選；點一下看由哪些配方製作、用在哪些配方，再點配方跳到專業分頁的拆解
+  - 法術分頁（永恆限定）：搜尋職業技能與專業配方法術，依職業或專業篩選；點一下跳到職業技能分頁或專業分頁的那一列
 - `/sigcheck`：檢查已學配方和打包資料對得上多少
 - `/sigprobe`：開發用的 API 探測
 
@@ -53,6 +55,7 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 ## 資料來源與版本
 
 - 永恆專業：官方 Web API（`static-1.60.1_70399-forever-tw`），經 `tools/build_data.py professions` 產生
+- 永恆全部物品（物品分頁）：同一份官方 Web API 資料（`static-1.60.1_70399-forever-tw`），經 `tools/build_data.py items` 產生
 - 正式版專業：官方 Web API（`static-12.1.5_70077-tw`）＋ wago.tools 12.1.5 客戶端資料表的材料槽與品質，經 `tools/build_data.py retail` 產生
 - 職業技能、冷卻、配方對應法術：wago.tools 的 1.60.1.70532 客戶端資料表
 - 遊戲內 API 白名單：`/sigprobe` 在 build 1.60.1.70862 的結果（`tools/gen_manifest.py`）

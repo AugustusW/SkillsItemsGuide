@@ -52,5 +52,39 @@ ns.SkillTab.selectClass(1)
 H.check(generated >= 1, "換職業後刷新下拉選單顯示")
 H.eq(next(ns.SkillTab.state().show), nil, "換職業時清掉勾選")
 generated = 0
-ns.Window.onSkillTab()
+ns.Window.setTab("skill")
 H.check(generated >= 1, "打開分頁時刷新下拉選單顯示（預設職業）")
+
+-- 法術分頁跳過來：定位到指定法術（清掉勾選與搜尋、捲到該等級組、標亮）
+local function spellAt(classId, lv)
+  for _, r in ipairs(ns.Data.classSkills[classId]) do if r.lv == lv then return r.spell end end
+end
+ns.SkillTab.selectClass(8)
+ns.SkillTab.setShow({ available = true })
+ns.SkillTab.state().search = "火"
+local sp20 = spellAt(8, 20)
+ok, err = pcall(ns.SkillTab.focus, 8, sp20)
+H.check(ok, "focus 不報錯：" .. tostring(err))
+st = ns.SkillTab.state()
+H.eq(ns.Window.state().tab, "skill", "focus 切到職業技能分頁")
+H.eq(st.classId, 8, "focus 選對職業")
+H.eq(st.scrollTo, 20, "捲到該法術的等級組（不是目前等級 18）")
+H.eq(next(st.show), nil, "清掉勾選")
+H.eq(st.search, nil, "清掉搜尋")
+H.eq(st.focusSpell, sp20, "記住要標亮的法術")
+local lit = 0
+for _, r in ipairs(ns.SkillTab._lines()) do if r._shown and r.hl and r.hl._shown then lit = lit + 1 end end
+H.eq(lit, 1, "只有一列標亮")
+local sp10 = spellAt(1, 10)
+ns.SkillTab.focus(1, sp10)
+H.eq(ns.SkillTab.state().scrollTo, 10, "別的職業也捲到該等級組")
+H.eq(ns.SkillTab.state().classId, 1, "別的職業 focus 選對職業")
+ns.SkillTab.selectClass(8)
+H.eq(ns.SkillTab.state().focusSpell, nil, "換職業後取消標亮")
+
+-- review：介面上的勾選框（不走 setShow）也要取消標亮，捲動回目前等級
+ns.SkillTab.focus(8, sp20)
+local cb = ns.SkillTab._ui().checks.available
+cb._scripts.OnClick(cb)
+H.eq(ns.SkillTab.state().focusSpell, nil, "按勾選框取消標亮")
+H.eq(ns.SkillTab.state().scrollTo, 18, "取消標亮後捲回目前等級")

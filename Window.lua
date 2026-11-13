@@ -8,7 +8,7 @@ ns.Window = Window
 
 -- 遊戲原色（品質）
 local QUALITY = { [0] = { 0.62, 0.62, 0.62 }, [1] = { 1, 1, 1 }, [2] = { 0.12, 1, 0 }, [3] = { 0, 0.44, 0.87 },
-  [4] = { 0.64, 0.21, 0.93 }, [5] = { 1, 0.5, 0 } }
+  [4] = { 0.64, 0.21, 0.93 }, [5] = { 1, 0.5, 0 }, [6] = { 0.9, 0.8, 0.5 }, [7] = { 0, 0.8, 1 } }
 local GREY = { 0.6, 0.6, 0.6 }
 local LEARNED = { 0.25, 1, 0.25 }
 Window.QUALITY = QUALITY
@@ -63,6 +63,11 @@ local function matches(rid, q)
 end
 
 local function recomputeImpl()
+  if S.recipe then
+    S.list, S.loading, S.empty = { S.recipe }, false, nil
+    S.header = string.format(L.RECIPE_FMT, titleOf(S.recipe))
+    return
+  end
   local base
   if S.material then
     base = ns.Index.usedBy(S.material)
@@ -100,13 +105,21 @@ end
 Window.recompute = recomputeImpl
 local function recompute() return Window.recompute() end
 
+-- 跳轉自動展開的配方：離開單一配方模式時收回（原本就展開的不動）
+local function leaveRecipe()
+  if S.autoExpanded then S.expanded[S.autoExpanded] = nil end
+  S.recipe, S.from, S.autoExpanded = nil, nil, nil
+end
+
 function Window.setSearch(text)
+  if S.recipe and text and text ~= "" then leaveRecipe() end -- 單一配方模式下打字：回到該專業清單再搜尋
   S.search = text
   recompute()
   Window.render()
 end
 
 function Window.setProf(prof)
+  leaveRecipe()
   S.prof, S.material = prof, nil
   recompute()
   Window.render(true)
@@ -115,6 +128,7 @@ end
 -- ---------- 畫面 ----------
 
 local frame, ui
+local registered, byKey = {}, {}
 
 local function releaseFocusOnHide(box)
   box:SetAutoFocus(false)
@@ -131,6 +145,45 @@ local function isLearned(rid)
   if not (char.opened or {})[tostring(ns.Data.recipes[rid].p)] then return nil end
   return sp and ns.Index.learned(ns.Data.recipes[rid], char.known or {}) or false
 end
+Window.recipeLearned = isLearned
+Window.recipeTitle = titleOf
+Window.LEARNED, Window.GREY = LEARNED, GREY
+-- 物品品質色：打包資料優先；永恆新物品打包沒有品質（約 345 個，例：正義護腿）就問遊戲，還沒載入時先白色
+function Window.itemQuality(id)
+  local it = id and ns.Data.items and ns.Data.items[id]
+  local q = it and it.q
+  if not q and id and ns.DbIndex then q = ns.DbIndex.quality(id) end -- 永恆全部物品
+  if not q and id and C_Item then
+    if C_Item.GetItemQualityByID then q = C_Item.GetItemQualityByID(id) end
+    if not q and C_Item.GetItemInfo then q = select(3, C_Item.GetItemInfo(id)) end
+  end
+  return q
+end
+
+function Window.itemColor(id)
+  return QUALITY[Window.itemQuality(id) or 1] or QUALITY[1]
+end
+
+-- 物品的修飾鍵點擊交給遊戲（Shift 貼連結、Ctrl 試穿，跟背包一樣）。
+-- 有按 Shift／Ctrl 就回 true（吃掉這次點擊），不看遊戲回傳值（試穿那條路可能回 nil）；
+-- 物品還沒快取時拿不到連結：請求載入，這次不動作（再點一次即可），也不穿透成打開明細
+function Window.modifiedItemClick(itemId)
+  local mod = (IsShiftKeyDown and IsShiftKeyDown()) or (IsControlKeyDown and IsControlKeyDown())
+  if not (mod and itemId) then return false end
+  local link = C_Item and C_Item.GetItemInfo and select(2, C_Item.GetItemInfo(itemId))
+  if link then
+    if HandleModifiedItemClick then HandleModifiedItemClick(link) end
+  elseif C_Item and C_Item.RequestLoadItemDataByID then
+    C_Item.RequestLoadItemDataByID(itemId)
+  end
+  return true
+end
+
+-- 配方名稱的品質色（成品的品質；沒有成品用白色）
+function Window.recipeColor(rid)
+  local rec = ns.Data.recipes[rid]
+  return rec.item and Window.itemColor(rec.item) or QUALITY[1]
+end
 
 -- 配方圖示 tooltip 的拆解樹。遊戲會照 tooltip 資料重建（按 Shift 時的 RefreshData、物品資料載入後），
 -- 手動加在後面的行會被洗掉，所以拆解樹由物品／法術 post-call 補上（Tooltip.lua），每次重建都會再加一次。
@@ -145,8 +198,7 @@ local function appendTree(tooltip, native)
     if not (native and l.title) then -- 已經有物品／法術 tooltip，不再重複成品名稱標題
       local c = { 1, 1, 1 }
       if l.title then
-        local it = l.item and ns.Data.items and ns.Data.items[l.item]
-        c = QUALITY[it and it.q or 1] or c
+        c = l.item and Window.itemColor(l.item) or c
       elseif l.cooldown then c = { 1, 0.3, 0.3 }
       elseif l.materials then c = { 1, 0.82, 0 }
       elseif l.more or l.hint then c = GREY end
@@ -204,6 +256,7 @@ local function iconOf(rid)
 end
 
 local function firstLayer(rid) return ns.Format.firstLayer(rid, ns.Names) end
+Window.recipeIcon, Window.recipeFirstLayer = iconOf, firstLayer
 
 local ROW_H = 36
 local TEXT_W = 600 -- 名稱、材料、樹的文字寬度；超過自動換行（實測：長材料超出視窗）
@@ -244,10 +297,7 @@ local function getRow(i)
   r.icon:SetScript("OnLeave", hideTree)
   r.icon:SetScript("OnClick", function()
     local rec = ns.Data.recipes[r.rid]
-    if IsShiftKeyDown and IsShiftKeyDown() and rec.item and C_Item and C_Item.GetItemInfo and ChatEdit_InsertLink then
-      local _, link = C_Item.GetItemInfo(rec.item)
-      if link then ChatEdit_InsertLink(link) end
-    end
+    if rec.item then Window.modifiedItemClick(rec.item) end
   end)
   r.toggle:SetScript("OnClick", function()
     S.expanded[r.rid] = not S.expanded[r.rid] or nil
@@ -262,7 +312,8 @@ function Window.render(resetScroll)
   ui.header:SetText(S.header or "")
   ui.hint:SetText(Window.hintText())
   ui.notOpened:SetText(Window.notOpenedText())
-  ui.clear:SetShown(S.material ~= nil)
+  ui.clear:SetShown(S.material ~= nil or S.recipe ~= nil)
+  ui.back:SetShown(S.from ~= nil)
   ui.empty:SetText(S.empty or "")
   local y = 0
   S.rendered = math.min(#S.list, MAX_ROWS)
@@ -274,9 +325,7 @@ function Window.render(resetScroll)
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", 0, -y)
     r.tex:SetTexture(iconOf(rid))
-    local rec = ns.Data.recipes[rid]
-    local it = rec.item and ns.Data.items and ns.Data.items[rec.item]
-    local c = QUALITY[it and it.q or 1] or QUALITY[1]
+    local c = Window.recipeColor(rid)
     r.name:SetText(titleOf(rid))
     r.name:SetTextColor(c[1], c[2], c[3])
     local lc = isLearned(rid) and LEARNED or GREY
@@ -328,25 +377,34 @@ local function build()
   icon:SetPoint("RIGHT", title, "LEFT", -4, 0)
   icon:SetTexture("Interface\\AddOns\\SkillsItemsGuide\\Media\\icon")
 
+  ui.tabs = {}
   ui.tabProf = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   ui.tabProf:SetSize(100, 22)
   ui.tabProf:SetPoint("TOPLEFT", 12, -28)
   ui.tabProf:SetText(L.TAB_PROF)
   ui.tabProf:SetScript("OnClick", function() Window.setTab("prof") end)
-  ui.tabSkill = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-  ui.tabSkill:SetSize(100, 22)
-  ui.tabSkill:SetPoint("LEFT", ui.tabProf, "RIGHT", 4, 0)
-  ui.tabSkill:SetText(L.TAB_SKILL)
-  ui.tabSkill:SetScript("OnClick", function() Window.setTab("skill") end)
-  if not ns.Flavor.isForever() then ui.tabSkill:Hide() end -- 正式版只做道具反查
+  ui.tabs.prof = ui.tabProf
 
   ui.prof = CreateFrame("Frame", nil, frame)
   ui.prof:SetPoint("TOPLEFT", 8, -56)
   ui.prof:SetPoint("BOTTOMRIGHT", -8, 8)
-  ui.skill = CreateFrame("Frame", nil, frame)
-  ui.skill:SetPoint("TOPLEFT", 8, -56)
-  ui.skill:SetPoint("BOTTOMRIGHT", -8, 8)
-  Window.tabs = { prof = ui.prof, skill = ui.skill }
+  Window.tabs = { prof = ui.prof }
+  -- 其他分頁（職業技能、物品、法術）依註冊順序排在「專業」之後；正式版 TOC 不載入那些檔，自然只有專業
+  local prev = ui.tabProf
+  for _, t in ipairs(registered) do
+    local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    b:SetSize(100, 22)
+    b:SetPoint("LEFT", prev, "RIGHT", 4, 0)
+    b:SetText(t.label)
+    b:SetScript("OnClick", function() Window.setTab(t.key) end)
+    ui.tabs[t.key] = b
+    prev = b
+    local p = CreateFrame("Frame", nil, frame)
+    p:SetPoint("TOPLEFT", 8, -56)
+    p:SetPoint("BOTTOMRIGHT", -8, 8)
+    p:Hide()
+    Window.tabs[t.key] = p
+  end
 
   -- 左：搜尋與專業
   ui.search = CreateFrame("EditBox", nil, ui.prof, "InputBoxTemplate")
@@ -375,6 +433,12 @@ local function build()
   ui.clear:SetPoint("TOPRIGHT", -130, -2)
   ui.clear:SetText(L.CLEAR)
   ui.clear:SetScript("OnClick", function() Window.setProf(S.prof) end)
+  -- 從物品／法術分頁跳過來時，回到原分頁（該分頁的狀態保留在自己的模組裡）
+  ui.back = CreateFrame("Button", nil, ui.prof, "UIPanelButtonTemplate")
+  ui.back:SetSize(70, 20)
+  ui.back:SetPoint("RIGHT", ui.clear, "LEFT", -4, 0)
+  ui.back:SetText(L.BACK)
+  ui.back:SetScript("OnClick", function() Window.back() end)
   ui.qty = CreateFrame("EditBox", nil, ui.prof, "InputBoxTemplate")
   ui.qty:SetSize(40, 20)
   ui.qty:SetPoint("TOPRIGHT", -10, -2)
@@ -411,33 +475,56 @@ local function build()
     ui.search:ClearFocus(); ui.qty:ClearFocus()
     if Window.onHide then Window.onHide() end
   end)
-  if Window.onBuild then Window.onBuild(ui.skill) end
+  for _, t in ipairs(registered) do t.build(Window.tabs[t.key]) end
+end
+
+-- 分頁註冊：build(panel) 在視窗建立時呼叫一次，onShow() 每次切到該分頁時呼叫，
+-- refresh()（可省略）在物品名稱載入回來時呼叫，不重置捲動
+function Window.registerTab(key, label, buildFn, onShow, refresh)
+  registered[#registered + 1] = { key = key, label = label, build = buildFn, onShow = onShow, refresh = refresh }
+  byKey[key] = registered[#registered]
 end
 
 function Window.setTab(tab)
-  if tab == "skill" and not ns.Flavor.isForever() then tab = "prof" end
+  if tab ~= "prof" and not byKey[tab] then tab = "prof" end
   S.tab = tab
   if not frame then return end
-  ui.prof:SetShown(tab == "prof")
-  ui.skill:SetShown(tab == "skill")
-  if tab == "skill" and Window.onSkillTab then Window.onSkillTab() end
+  for key, p in pairs(Window.tabs) do p:SetShown(key == tab) end
+  local t = byKey[tab]
+  if t then
+    if t.onShow then t.onShow() end
+  else
+    recompute(); Window.render() -- 離開期間名稱可能已載入回來（不重置捲動）
+  end
 end
 
--- opts = { tab="prof"|"skill", material=itemId, prof=profId }
+-- 「← 返回」：回到跳過來的分頁，專業分頁回到該專業清單
+function Window.back()
+  local from = S.from
+  leaveRecipe()
+  if from then Window.setTab(from) end
+end
+
+-- opts = { tab=分頁, material=itemId, prof=profId, recipe=rid, from=返回的分頁 }
 function Window.open(opts)
   opts = opts or {}
   if not frame then build() end
   S.material = opts.material
+  leaveRecipe()
+  if opts.recipe then
+    S.recipe, S.from = opts.recipe, opts.from
+    S.material, S.prof = nil, ns.Data.recipes[opts.recipe].p
+    if not S.expanded[opts.recipe] then S.expanded[opts.recipe], S.autoExpanded = true, opts.recipe end
+  end
   if opts.prof then S.prof = opts.prof end
   S.search = nil
   if not S.prof and not S.material then S.prof = Window.defaultProf() end
-  -- 清空搜尋框會觸發 OnTextChanged；先擋掉，最後只重算一次
+  -- 清空搜尋框會觸發 OnTextChanged；先擋掉，最後只重算一次（切到專業分頁時由 setTab 重算）
   S.suppress = true
   if ui.search then ui.search:SetText("") end
   S.suppress = false
-  recompute()
   frame:Show()
-  Window.setTab(opts.tab or "prof")
+  Window.setTab(opts.recipe and "prof" or opts.tab or "prof")
   Window.render(true)
 end
 
@@ -480,7 +567,13 @@ end
 
 -- 名稱重試的下一輪：視窗開著就重算（會觸發還沒回來的物品再請求一次）
 function Window.refreshIfShown()
-  if frame and frame:IsShown() then recompute(); Window.render() end
+  if not (frame and frame:IsShown()) then return end
+  local t = byKey[S.tab]
+  if t then
+    if t.refresh then t.refresh() end
+  else
+    recompute(); Window.render()
+  end
 end
 
 function Window.toggle()
@@ -496,7 +589,7 @@ table.insert(ns.onLoad, function()
   local pending = false
   local function flush()
     pending = false
-    if frame and frame:IsShown() then recompute(); Window.render() end
+    Window.refreshIfShown()
     if GameTooltip and GameTooltip.IsShown and GameTooltip:IsShown() and GameTooltip.RefreshData then GameTooltip:RefreshData() end
   end
   f:SetScript("OnEvent", function(_, _, itemId, success)

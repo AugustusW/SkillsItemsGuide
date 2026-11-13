@@ -138,3 +138,73 @@ H.check(ns.Window.footerText():find("AugustusW", 1, true) ~= nil, "視窗底部�
 
 -- 改名後長指令也要跟著改（/skillsitemsguide）
 H.check(SLASH_SKILLSITEMSGUIDE1 == "/skillsitemsguide", "長指令是 /skillsitemsguide")
+
+-- 分頁註冊表（物品／法術分頁）：職業技能分頁由 SkillTab 註冊；未註冊的分頁回到專業
+ns.Window.open({})
+H.check(ns.Window._ui().tabs and ns.Window._ui().tabs.skill ~= nil, "永恆有職業技能分頁按鈕（註冊表）")
+ns.Window.setTab("nope")
+H.eq(ns.Window.state().tab, "prof", "未註冊的分頁回到專業")
+
+-- 單一配方模式（物品／法術分頁跳過來）：清單只有那一條、已展開，「清除」回該專業
+local rid = ns.Index.madeBy(2996)[1]
+ok, err = pcall(ns.Window.open, { recipe = rid, from = "item" })
+H.check(ok, "單一配方模式開啟不報錯：" .. tostring(err))
+st = ns.Window.state()
+H.eq(st.tab, "prof", "單一配方模式在專業分頁")
+H.eq(#st.list, 1, "清單只有一條")
+H.eq(st.list[1], rid, "清單是指定的配方")
+H.eq(st.expanded[rid], true, "預設展開")
+H.check(st.header:find("配方：", 1, true) == 1, "標題「配方：<名稱>」（" .. tostring(st.header) .. "）")
+H.eq(st.from, "item", "記住從哪個分頁來")
+H.eq(st.prof, ns.Data.recipes[rid].p, "專業切到該配方的專業")
+ns.Window.setSearch("不存在的字")
+H.eq(ns.Window.state().recipe, nil, "在搜尋框打字就離開單一配方模式（review：原本打字沒反應）")
+H.eq(#ns.Window.state().list, 0, "搜尋套用到該專業清單")
+ns.Window.open({ recipe = rid, from = "item" })
+ns.Window.setProf(st.prof)
+st = ns.Window.state()
+H.eq(st.recipe, nil, "清除後離開單一配方模式")
+H.eq(st.from, nil, "清除後不再顯示返回")
+ns.Window.setSearch("")
+H.check(#ns.Window.state().list > 1, "清除後回到該專業清單")
+ns.Window.open({ recipe = rid, from = "item" })
+ns.Window.open({ material = 2589 })
+H.eq(ns.Window.state().recipe, nil, "開材料反查時離開單一配方模式")
+H.eq(ns.Window.state().from, nil, "開材料反查時清掉返回")
+
+-- 配方列對外函式（物品明細共用）
+SkillsItemsGuideCharDB = {}
+H.eq(ns.Window.recipeLearned(rid), nil, "專業視窗沒開過：已學未知")
+SkillsItemsGuideCharDB = { opened = { [tostring(ns.Data.recipes[rid].p)] = true }, known = {} }
+H.eq(ns.Window.recipeLearned(rid), false, "開過、沒學")
+H.check(type(ns.Window.recipeTitle(rid)) == "string", "配方標題")
+H.check(type(ns.Window.recipeFirstLayer(rid)) == "string", "第一層材料")
+H.check(ns.Window.recipeIcon(rid) ~= nil, "配方圖示")
+H.check(type(ns.Window.recipeColor(rid)) == "table", "配方品質色")
+
+-- review：返回後專業分頁不能還停在單一配方模式；自動展開的配方要收回
+local rid2 = ns.Index.madeBy(2996)[1]
+ns.Window.open({})
+ns.Window.state().expanded[rid2] = nil
+ns.Window.open({ recipe = rid2, from = "item" })
+ns.Window.back()
+H.eq(ns.Window.state().tab, "item", "返回原分頁")
+H.eq(ns.Window.state().recipe, nil, "返回後離開單一配方模式")
+H.eq(ns.Window.state().from, nil, "返回後清掉返回")
+H.eq(ns.Window.state().expanded[rid2], nil, "跳轉自動展開的配方收回")
+ns.Window.open({ recipe = rid2 })
+ns.Window.setProf(ns.Window.state().prof)
+H.eq(ns.Window.state().expanded[rid2], nil, "清除後自動展開的配方收回")
+ns.Window.state().expanded[rid2] = true
+ns.Window.open({ recipe = rid2 })
+ns.Window.setProf(ns.Window.state().prof)
+H.eq(ns.Window.state().expanded[rid2], true, "原本就展開的配方不收回")
+ns.Window.state().expanded[rid2] = nil
+
+-- review：離開專業分頁期間名稱載入回來，切回專業分頁要重算（否則一直卡在「載入中」）
+local calls, orig = 0, ns.Window.recompute
+ns.Window.recompute = function() calls = calls + 1 return orig() end
+ns.Window.setTab("item")
+ns.Window.setTab("prof")
+H.check(calls >= 1, "切回專業分頁會重算")
+ns.Window.recompute = orig

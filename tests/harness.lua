@@ -44,6 +44,8 @@ local function widget(kind)
     HasFocus = function(self) return H.focus == self end,
     IsShown = function(self) return self._shown end,
     SetText = function(self, t) self._text = t end,
+    SetVerticalScroll = function(self, v) self._scroll = v end,
+    GetVerticalScroll = function(self) return self._scroll or 0 end,
     GetText = function(self) return self._text end,
     GetStringWidth = function(self) return #self._text * 6 end,
     -- 粗略模擬換行：每 60 位元組一行、每行 14 高；\n 另算一行
