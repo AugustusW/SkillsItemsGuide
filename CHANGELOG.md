@@ -2,6 +2,18 @@
 
 每個版本一段，標題是 `## <版本>`；段內小標用 `###`。發版時 GitHub Release 與 CurseForge 的更新說明取自對應的段落。
 
+## 0.4.1
+
+- 永恆資料更新到最新客戶端（1.60.1.71037）：職業技能清單與學習等級跟著遊戲調整（例：聖騎士、盜賊、德魯伊）
+- 永恆物品新增 74 件，包含九套新的整套裝備
+- 永恆配方：部分材料數量、物品等級與技能需求更新，2 個配方補上對應法術
+
+---
+
+- Forever data updated to the latest client (1.60.1.71037): class skill lists and training levels follow the game's changes (e.g. Paladin, Rogue, Druid)
+- 74 new Forever items, including nine new armor sets
+- Forever recipes: updated some reagent counts, item levels and skill requirements; 2 recipes now link their spell
+
 ## 0.4.0
 
 - 新增「物品」分頁（永恆）：搜尋永恆全部物品（約 1.7 萬筆），依配方材料／可製作、專業、物品類別、品質篩選，依物品等級排序。配方相關物品點一下看由哪些配方製作、用在哪些配方，再點配方會跳到專業分頁並展開拆解

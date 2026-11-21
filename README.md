@@ -57,7 +57,7 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 - 永恆專業：官方 Web API（`static-1.60.1_70399-forever-tw`），經 `tools/build_data.py professions` 產生
 - 永恆全部物品（物品分頁）：同一份官方 Web API 資料（`static-1.60.1_70399-forever-tw`），經 `tools/build_data.py items` 產生
 - 正式版專業：官方 Web API（`static-12.1.5_70077-tw`）＋ wago.tools 12.1.5 客戶端資料表的材料槽與品質，經 `tools/build_data.py retail` 產生
-- 職業技能、冷卻、配方對應法術：wago.tools 的 1.60.1.70532 客戶端資料表
+- 職業技能、冷卻、配方對應法術：wago.tools 的 1.60.1.71037 客戶端資料表
 - 遊戲內 API 白名單：`/sigprobe` 在 build 1.60.1.70862 的結果（`tools/gen_manifest.py`）
 
 ## 開發

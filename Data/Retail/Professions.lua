@@ -3,10 +3,10 @@ local _, ns = ...
 ns.Data = ns.Data or {}
 local D = ns.Data
 D.meta = D.meta or {}
-D.meta.db2Build = "12.1.5.70783"
-D.meta.generated = "2026-11-09"
+D.meta.db2Build = "12.1.5.70961"
+D.meta.generated = "2026-11-21"
 D.meta.profVersion = "static-12.1.5_70077-tw"
-D.meta.sources = {db="b41a31b63cd810ad",["wago:SkillLineAbility"]="0fa7ed0fdd2004c4",["wago:SpellCooldowns"]="e89a46ad2405661f",["wago:SpellEffect"]="cd9c42bb86e807f6",["wago:SpellName_zhTW"]="ae2dd906a4d56cb2"}
+D.meta.sources = {db="086bfdd6d389ee30",["wago:SkillLineAbility"]="0fa7ed0fdd2004c4",["wago:SpellCooldowns"]="e89a46ad2405661f",["wago:SpellEffect"]="7f9750674222924a",["wago:SpellName_zhTW"]="a53fe9b23ae4769f"}
 D.itemNames = {
   [118]="初級治療藥水",
   [159]="清涼的泉水",
