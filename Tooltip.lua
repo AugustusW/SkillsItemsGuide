@@ -50,11 +50,14 @@ ns.onLoad = ns.onLoad or {}
 table.insert(ns.onLoad, function()
   if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
+      -- 並排的配方書 tooltip 只顯示遊戲原本的內容，不加數量行與拆解樹
+      if ns.SourceTip and ns.SourceTip.isSourceTip(tooltip) then return end
       Tooltip.add(tooltip, data and data.id)
       if ns.Window and ns.Window.addTreeIfOwned then ns.Window.addTreeIfOwned(tooltip) end
     end)
     if Enum.TooltipDataType.Spell then
       TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function(tooltip)
+        if ns.SourceTip and ns.SourceTip.isSourceTip(tooltip) then return end
         if ns.Window and ns.Window.addTreeIfOwned then ns.Window.addTreeIfOwned(tooltip) end
       end)
     end

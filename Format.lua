@@ -100,13 +100,19 @@ function Format.firstLayer(rid, names)
 end
 
 -- 樹狀 tooltip：標題、專業（技能）、原料、冷卻、樹（最多 maxRows 列）、多做法
-function Format.treeTooltip(res, names, maxRows)
+-- opts.withSource = Source 的 ctx：只在根配方的專業（技能）行之後插入「學會方式」「技能點數」兩段（永恆、有 ns.Source 才有）
+function Format.treeTooltip(res, names, maxRows, opts)
   maxRows = maxRows or 12
   local lines = {}
   local root = res.root
   local title = L.paren(root.item and itemName(names, root.item) or recipeTitle(names, root.recipe), root.n)
   lines[#lines + 1] = { text = title, title = true, item = root.item }
   if root.prof then lines[#lines + 1] = { text = profSkill(names, root.prof, root.recipe) } end
+  local srcCtx = opts and opts.withSource
+  local spell = srcCtx and ns.Source and root.recipe and ns.Data.recipes[root.recipe] and ns.Data.recipes[root.recipe].spell
+  if spell then
+    for _, sl in ipairs(ns.Source.lines(spell, srcCtx)) do lines[#lines + 1] = sl end
+  end
   if #res.totals > 0 then
     local parts = {}
     for i, t in ipairs(res.totals) do parts[i] = L.paren(itemName(names, t.item), t.n) end

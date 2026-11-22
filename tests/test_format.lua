@@ -107,3 +107,54 @@ local jj = table.concat(all, "\n")
 H.check(jj:find("×", 1, true) == nil, "樹狀拆解不出現 ×")
 H.check(jj:find("紅色亞麻包（3）", 1, true) ~= nil, "標題數量用括號")
 H.eq(ns.Format.firstLayer(4019, names(PROF_ZH)), "細線（1）、紅色染料（1）、亞麻布卷（4）", "清單第一層材料用括號")
+
+-- 取得方式兩段：只有 opts.withSource 才加，只加在根配方、專業（技能）行之後、原料之前
+do
+  local F2 = { "Locale.lua", "Flavor.lua", "Data/Forever/Professions.lua", "Data/Forever/ClassSkills.lua", "Data/Forever/Cache.lua",
+    "Data/Forever/Sources.lua", "Source.lua", "Index.lua", "Breakdown.lua", "Format.lua" }
+  H.reset({ locale = "zhTW" })
+  local n2 = H.load(F2)
+  n2.Index.build()
+  local sp = n2.Data.recipes[4019].spell
+  local childSp = n2.Data.recipes[2996] and n2.Data.recipes[2996].spell
+  n2.Data.meta.sourcesGenerated = "2026-11-22"
+  n2.Data.sources = { [sp] = { src = "book", books = { { item = 900 } }, tr = { 10, 20, 30, 40 } } }
+  if childSp then n2.Data.sources[childSp] = { src = "auto", tr = { 1, 2, 3, 4 } } end
+  n2.Data.sourceNamesByLocale = { zhTW = { quest = {}, area = {}, faction = {} }, enUS = { quest = {}, area = {}, faction = {} } }
+  n2.Source.init()
+  local r2 = n2.Breakdown.build(4019, 3)
+  local ctx = { side = "A", profSkill = 15, names = names(PROF_ZH) }
+  local function idx(lines, flag) for i, l in ipairs(lines) do if l.flag == flag then return i end end end
+  local function count(lines, flag) local c = 0 for _, l in ipairs(lines) do if l.flag == flag then c = c + 1 end end return c end
+
+  local plain = n2.Format.treeTooltip(r2, names(PROF_ZH), 12)
+  H.eq(idx(plain.lines, "sourceTitle"), nil, "不帶 opts 沒有學會方式")
+  H.eq(idx(plain.lines, "skillRangeTitle"), nil, "不帶 opts 沒有技能點數")
+  local empty = n2.Format.treeTooltip(r2, names(PROF_ZH), 12, {})
+  H.eq(#empty.lines, #plain.lines, "opts 沒有 withSource 行數不變")
+
+  local w = n2.Format.treeTooltip(r2, names(PROF_ZH), 12, { withSource = ctx })
+  local iSt, iRt = idx(w.lines, "sourceTitle"), idx(w.lines, "skillRangeTitle")
+  H.check(iSt ~= nil and iRt ~= nil and iSt < iRt, "兩段都有，學會方式在技能點數之前")
+  H.eq(iSt, 3, "學會方式緊接在專業（技能）行之後")
+  H.check(w.lines[2].text:find("技能", 1, true) ~= nil, "第二行仍是專業（技能）")
+  local iMat
+  for i, l in ipairs(w.lines) do if l.materials then iMat = i end end
+  H.check(iMat > iRt, "原料在兩段之後")
+  H.eq(count(w.lines, "sourceTitle"), 1, "只在根配方加一次（子配方不加）")
+  H.eq(count(w.lines, "skillRangeTitle"), 1, "技能點數只一次")
+  local rng = w.lines[idx(w.lines, "skillRange")]
+  H.eq(#rng.parts, 4, "技能點數行帶四個數字")
+
+  -- 沒有這個配方的資料：不加任何行
+  n2.Data.sources = {}
+  local none = n2.Format.treeTooltip(r2, names(PROF_ZH), 12, { withSource = ctx })
+  H.eq(#none.lines, #plain.lines, "沒有來源資料時行數不變")
+
+  -- 沒有 ns.Source（零售）：即使帶 withSource 也不加
+  local saved = n2.Source
+  n2.Source = nil
+  local nos = n2.Format.treeTooltip(r2, names(PROF_ZH), 12, { withSource = ctx })
+  H.eq(#nos.lines, #plain.lines, "沒有 ns.Source 時不加")
+  n2.Source = saved
+end

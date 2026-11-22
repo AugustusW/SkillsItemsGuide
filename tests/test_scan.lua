@@ -64,6 +64,29 @@ H.fire("ADDON_LOADED", "SkillsItemsGuide")
 H.fire("TRAINER_SHOW")
 H.check(SkillsItemsGuideDB.trainer.prof and SkillsItemsGuideDB.trainer.prof["197"] ~= nil, "專業訓練師存到 prof[197]")
 
+-- 專業訓練師存檔後通知視窗重繪（視窗開著時標籤立刻變金色）；職業訓練師不觸發
+do
+  local refreshes = 0
+  local function runWith(kind)
+    refreshes = 0
+    local a = trainerAPI(kind, { available = true, unavailable = true, used = true })
+    a.GetTrainerServiceSkillLine = function() return "裁縫" end
+    a.GetProfessions = function() return 1, nil end
+    a.GetProfessionInfo = function() return "裁縫", nil, 50, 75, 10, 0, 197 end
+    H.reset({ extra = a })
+    dofile(H.dir .. "/tests/fixtures/sv_sample.lua")
+    local n = H.load(FILES)
+    n.Window = { refreshIfShown = function() refreshes = refreshes + 1 end }
+    H.fire("ADDON_LOADED", "SkillsItemsGuide")
+    H.fire("TRAINER_SHOW")
+    H.fire("TRAINER_UPDATE") -- 同一次造訪不重讀，也不重複刷新
+  end
+  runWith("prof")
+  H.eq(refreshes, 1, "專業訓練師存檔後呼叫一次 Window.refreshIfShown")
+  runWith("class")
+  H.eq(refreshes, 0, "職業訓練師不觸發視窗刷新")
+end
+
 -- 專業與已學配方：登入時記下學了哪些專業；開專業視窗時記下已學配方（客戶端 recipeID＝法術 id）
 local recipes = { [2963] = { learned = true }, [2964] = { learned = false }, [3915] = { learned = true } }
 H.reset({ extra = {

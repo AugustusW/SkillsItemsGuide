@@ -188,21 +188,46 @@ end
 -- 配方圖示 tooltip 的拆解樹。遊戲會照 tooltip 資料重建（按 Shift 時的 RefreshData、物品資料載入後），
 -- 手動加在後面的行會被洗掉，所以拆解樹由物品／法術 post-call 補上（Tooltip.lua），每次重建都會再加一次。
 -- 沒有 TooltipDataProcessor 的 client 不會跑 post-call，就由 showTree 自己加。
-local tree = { owner = nil, rid = nil, added = false, native = false }
+local tree = { owner = nil, rid = nil, added = false, native = false, opts = nil }
+
+-- 取得方式行的顏色（GameTooltip 一行一色；技能點數四個數字用色碼）
+local function hex(r, g, b) return { r / 255, g / 255, b / 255 } end
+local BOOK_QUALITY = { [0] = hex(157, 157, 157), hex(255, 255, 255), hex(30, 255, 0), hex(0, 112, 221),
+  hex(163, 53, 238), hex(255, 128, 0) } -- 9d9d9d ffffff 1eff00 0070dd a335ee ff8000（寫死，不依賴全域色表）
+local RANGE_HEX = { o = "ff8040", y = "ffff00", g = "40bf40", x = "808080" }
+local function sourceLine(l)
+  local f = l.flag
+  if l.sideOther then return l.text, { 0.5, 0.5, 0.5 } end
+  if f == "sourceTitle" or f == "skillRangeTitle" then return l.text, { 1, 0.82, 0 } end
+  if f == "skillRange" and l.parts then
+    local t = {}
+    for i, p in ipairs(l.parts) do t[i] = "|cff" .. RANGE_HEX[p.color] .. p.text .. "|r" end
+    return table.concat(t, " "), { 1, 1, 1 }
+  end
+  if f == "source" and l.q and BOOK_QUALITY[l.q] and not l.confirmed then return l.text, BOOK_QUALITY[l.q] end
+  if f == "source" and l.confirmed then
+    return "|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t " .. l.text, { 1, 0.82, 0 }
+  end
+  if f == "sourceDetail" or f == "sourceMore" then return l.text, { 0.8, 0.8, 0.8 } end
+  return l.text, { 1, 1, 1 }
+end
 
 local function appendTree(tooltip, native)
   local res = ns.Breakdown.build(tree.rid, S.qty, knownSet())
-  local tt = ns.Format.treeTooltip(res, ns.Names, 12)
+  local tt = ns.Format.treeTooltip(res, ns.Names, 12, tree.opts)
   if native then tooltip:AddLine(" ") end
   for _, l in ipairs(tt.lines) do
+    local text = l.text
     if not (native and l.title) then -- 已經有物品／法術 tooltip，不再重複成品名稱標題
       local c = { 1, 1, 1 }
       if l.title then
         c = l.item and Window.itemColor(l.item) or c
+      elseif l.flag then
+        text, c = sourceLine(l)
       elseif l.cooldown then c = { 1, 0.3, 0.3 }
       elseif l.materials then c = { 1, 0.82, 0 }
       elseif l.more or l.hint then c = GREY end
-      tooltip:AddLine(l.text, c[1], c[2], c[3], true)
+      tooltip:AddLine(text, c[1], c[2], c[3], true)
     end
   end
   tree.added = true
@@ -213,11 +238,12 @@ function Window.addTreeIfOwned(tooltip)
   if tree.owner and tooltip.GetOwner and tooltip:GetOwner() == tree.owner then appendTree(tooltip, true) end
 end
 
-local function showTree(owner, rid)
+-- opts.withSource = Source ctx：只有專業清單列的圖示帶（DbTab 與其他呼叫端不帶）
+local function showTree(owner, rid, opts)
   if not GameTooltip then return end
   GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
   GameTooltip:ClearLines()
-  tree.owner, tree.rid, tree.added = owner, rid, false
+  tree.owner, tree.rid, tree.added, tree.opts = owner, rid, false, opts
   -- 使用者實測：只有拆解樹不夠，物品本身的資訊（屬性、類型、售價）最重要 → 先放遊戲原本的 tooltip
   -- API 不存在時（永恆未必都有）退回只有拆解樹
   local rec = ns.Data.recipes[rid]
@@ -230,12 +256,18 @@ local function showTree(owner, rid)
   tree.native = native
   if not tree.added then appendTree(GameTooltip, native) end
   GameTooltip:Show()
+  -- 並排配方書 tooltip（永恆才有 SourceTip／Source）；只有專業清單列帶 withSource
+  if ns.SourceTip then
+    local ctx = opts and opts.withSource
+    local book = ctx and rec.spell and ns.Source and ns.Source.firstOwnBook(rec.spell, ctx)
+    if book then ns.SourceTip.show(owner, book) else ns.SourceTip.hide() end
+  end
 end
 
 -- 按 Shift 刷新用：沒有遊戲資料（沒有成品也沒有法術）的拆解 tooltip，RefreshData 只會清空，改成整個重畫
 function Window.refreshTree(tooltip)
   if tree.owner and not tree.native and tooltip.GetOwner and tooltip:GetOwner() == tree.owner then
-    showTree(tree.owner, tree.rid)
+    showTree(tree.owner, tree.rid, tree.opts)
     return true
   end
   return false
@@ -243,6 +275,7 @@ end
 
 local function hideTree()
   tree.owner = nil
+  if ns.SourceTip then ns.SourceTip.hide() end
   if GameTooltip then GameTooltip:Hide() end
 end
 Window._hideTree = hideTree
@@ -260,6 +293,99 @@ Window.recipeIcon, Window.recipeFirstLayer = iconOf, firstLayer
 
 local ROW_H = 36
 local TEXT_W = 600 -- 名稱、材料、樹的文字寬度；超過自動換行（實測：長材料超出視窗）
+local NAME_W_SRC = 470 -- 永恆：名稱縮短，右側留給取得方式標籤與技能顏色圓點（不換行，名稱優先）
+local TAG_COLORS = { auto = { 0.8, 0.8, 0.8 }, book = { 0.4, 0.7, 1 }, trainerOk = { 1, 0.82, 0 }, trainer = GREY }
+local DOT_COLORS = { o = { 1, 0.5, 0.25 }, y = { 1, 1, 0 }, g = { 0.25, 0.75, 0.25 }, x = { 0.5, 0.5, 0.5 } }
+local READY_CHECK = "Interface\\RaidFrame\\ReadyCheck-Ready"
+Window.TAG_COLORS, Window.DOT_COLORS = TAG_COLORS, DOT_COLORS
+
+-- 清單的取得方式標籤只在永恆（有 ns.Source）時啟用，正式版整列維持原樣；沒有來源資料時 Source.kind 回 nil，不畫標籤與圓點
+local function sourceOn()
+  return ns.Source ~= nil and ns.Flavor.isForever() and ns.Data ~= nil and ns.Data.meta ~= nil and ns.Data.meta.sourcesGenerated ~= nil
+end
+
+-- 訓練師快取 → 法術 id 集合。只收十進位數字字串的鍵 → { [法術id] = 學費 | true }；
+-- 非數字鍵（例："名稱|等級"）逐筆略過（寧可不確認，也不誤判）；一筆都沒有回 nil。
+-- 實際鍵格式待使用者遊戲內 SavedVariables 確認，要調整只改這一個函式。
+function Window.trainerSpellSet(professionId)
+  local prof = SkillsItemsGuideDB and SkillsItemsGuideDB.trainer and SkillsItemsGuideDB.trainer.prof
+  local entry = prof and prof[tostring(professionId)]
+  local spells = entry and entry.spells
+  if type(spells) ~= "table" then return nil end
+  local set, n = {}, 0
+  for k, row in pairs(spells) do
+    if type(k) == "string" and k:match("^%d+$") then -- 非數字鍵逐筆略過，不連累其他法術
+      set[tonumber(k)] = (type(row) == "table" and row.cost) or true
+      n = n + 1
+    end
+  end
+  if n == 0 then return nil end
+  return set
+end
+
+-- 訓練師快取 → { [法術id] = 學會所需技能 }（skill > 1 才收；0/1 在快取與資料表裡都是「不知道」）；沒有回 nil
+function Window.trainerSkillSet(professionId)
+  local prof = SkillsItemsGuideDB and SkillsItemsGuideDB.trainer and SkillsItemsGuideDB.trainer.prof
+  local entry = prof and prof[tostring(professionId)]
+  local spells = entry and entry.spells
+  if type(spells) ~= "table" then return nil end
+  local set, n = {}, 0
+  for k, row in pairs(spells) do
+    if type(k) == "string" and k:match("^%d+$") and type(row) == "table"
+        and type(row.skill) == "number" and row.skill > 1 then
+      set[tonumber(k)] = row.skill
+      n = n + 1
+    end
+  end
+  if n == 0 then return nil end
+  return set
+end
+
+-- 角色目前某專業的技能點數；沒學這個專業回 nil
+function Window.playerSkill(professionId)
+  if not (GetProfessions and GetProfessionInfo) then return nil end
+  local list = { GetProfessions() }
+  for i = 1, 6 do
+    local idx = list[i]
+    if idx then
+      local _, _, skillLevel, _, _, _, skillLine = GetProfessionInfo(idx)
+      if skillLine == professionId then return skillLevel end
+    end
+  end
+  return nil
+end
+
+local function playerSide()
+  local f = UnitFactionGroup and UnitFactionGroup("player")
+  if f == "Alliance" then return "A" elseif f == "Horde" then return "H" end
+end
+
+-- 一個配方的來源判定情境（每個專業每次繪製只建一次，清單標籤與 tooltip 共用）；沒有來源功能或沒有法術回 nil
+local function sourceCtx(rid, cache)
+  if not sourceOn() then return nil end
+  local rec = ns.Data.recipes[rid]
+  if not (rec and rec.spell) then return nil end
+  local p = rec.p
+  local c = cache[p]
+  if not c then
+    c = { ctx = { side = playerSide(), profSkill = Window.playerSkill(p), trainerSpells = Window.trainerSpellSet(p), trainerSkills = Window.trainerSkillSet(p), names = ns.Names,
+             profName = ns.Names and ns.Names.prof and ns.Names.prof(p) or nil } }
+    cache[p] = c
+  end
+  return c.ctx
+end
+
+-- 一個配方的清單標籤資訊：{ kind, text, color, tick, dot } 或 nil
+local function sourceInfo(rid, cache)
+  local ctx = sourceCtx(rid, cache)
+  if not ctx then return nil end
+  local spell = ns.Data.recipes[rid].spell
+  local kind = ns.Source.kind(spell, ctx)
+  if not kind then return nil end
+  local text = kind == "auto" and L.SRC_TAG_AUTO or kind == "book" and L.SRC_TAG_BOOK or L.SRC_TAG_TRAINER
+  return { kind = kind, text = text, color = TAG_COLORS[kind], tick = kind == "trainerOk",
+    dot = ns.Source.color(spell, ctx.profSkill, ctx) }
+end
 local rows = {}
 Window._rows = rows
 local function textH(fs, fallbackLines)
@@ -279,7 +405,20 @@ local function getRow(i)
   r.name = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   r.name:SetPoint("TOPLEFT", 36, -4)
   r.name:SetJustifyH("LEFT")
-  r.name:SetWidth(TEXT_W)
+  r.name:SetWidth(sourceOn() and NAME_W_SRC or TEXT_W)
+  if sourceOn() then r.name:SetWordWrap(false) end
+  r.dot = r:CreateTexture(nil, "OVERLAY") -- 色塊而非「●」字元：拉丁字型不保證有該字形
+  r.dot:SetSize(8, 8)
+  r.dot:SetPoint("TOPLEFT", 36 + NAME_W_SRC + 4, -9)
+  r.dot:Hide()
+  r.tag = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  r.tag:SetPoint("TOPRIGHT", -30, -8)
+  r.tag:SetJustifyH("RIGHT")
+  r.tick = r:CreateTexture(nil, "OVERLAY")
+  r.tick:SetSize(12, 12)
+  r.tick:SetPoint("RIGHT", r.tag, "LEFT", -2, 0)
+  r.tick:SetTexture(READY_CHECK)
+  r.tick:Hide()
   r.mats = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   r.mats:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -2)
   r.mats:SetJustifyH("LEFT")
@@ -293,7 +432,7 @@ local function getRow(i)
   r.tree:SetJustifyH("LEFT")
   r.tree:SetWidth(TEXT_W)
   r.tree:SetWordWrap(true)
-  r.icon:SetScript("OnEnter", function(self) showTree(self, r.rid) end)
+  r.icon:SetScript("OnEnter", function(self) showTree(self, r.rid, { withSource = r.srcCtx }) end)
   r.icon:SetScript("OnLeave", hideTree)
   r.icon:SetScript("OnClick", function()
     local rec = ns.Data.recipes[r.rid]
@@ -316,6 +455,7 @@ function Window.render(resetScroll)
   ui.back:SetShown(S.from ~= nil)
   ui.empty:SetText(S.empty or "")
   local y = 0
+  local srcCache = {}
   S.rendered = math.min(#S.list, MAX_ROWS)
   S.overflow = #S.list - S.rendered
   for i = 1, S.rendered do
@@ -331,6 +471,16 @@ function Window.render(resetScroll)
     local lc = isLearned(rid) and LEARNED or GREY
     r.mats:SetText(firstLayer(rid))
     r.mats:SetTextColor(lc[1], lc[2], lc[3])
+    local info = sourceInfo(rid, srcCache)
+    r.srcCtx = sourceCtx(rid, srcCache)
+    r.src = info
+    r.tag:SetText(info and info.text or "")
+    if info then r.tag:SetTextColor(info.color[1], info.color[2], info.color[3]) end
+    r.tag:SetShown(info ~= nil)
+    r.tick:SetShown(info ~= nil and info.tick)
+    local dc = info and info.dot and DOT_COLORS[info.dot]
+    if dc then r.dot:SetColorTexture(dc[1], dc[2], dc[3], 1) end
+    r.dot:SetShown(dc ~= nil)
     r.toggle:SetText(S.expanded[rid] and "-" or "+")
     local h = math.max(ROW_H, 8 + textH(r.name, 1) + textH(r.mats, 1))
     if S.expanded[rid] then
@@ -473,6 +623,7 @@ local function build()
 
   frame:SetScript("OnHide", function()
     ui.search:ClearFocus(); ui.qty:ClearFocus()
+    if ns.SourceTip then ns.SourceTip.hide() end
     if Window.onHide then Window.onHide() end
   end)
   for _, t in ipairs(registered) do t.build(Window.tabs[t.key]) end

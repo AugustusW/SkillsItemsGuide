@@ -66,3 +66,13 @@ local titles = {}
 for _, r in ipairs(ns.Window._rows) do if r.rid then titles[r.rid] = r.name:GetText() end end
 H.check(titles[2963] and titles[2963]:find("（艾澤拉斯裁縫）", 1, true) ~= nil, "舊資料片配方標資料片名稱：" .. tostring(titles[2963]))
 H.check(titles[52148] and titles[52148]:find("至暗之夜", 1, true) == nil, "當前資料片不標：" .. tostring(titles[52148]))
+
+-- 6. 正式版清單列不顯示取得方式標籤與圓點，名稱寬度與換行維持原樣
+H.check(ns.Source == nil, "正式版沒有 Source 模組")
+do
+  local r = ns.Window._rows[1]
+  H.eq(r.name._width, 600, "正式版名稱寬度不變")
+  H.eq(r.name._wrap, nil, "正式版名稱不改換行設定")
+  H.eq(r.src, nil, "正式版列沒有取得方式資訊")
+  H.check(not r.tag._shown and not r.dot._shown and not r.tick._shown, "正式版標籤、圓點、圖示都不顯示")
+end

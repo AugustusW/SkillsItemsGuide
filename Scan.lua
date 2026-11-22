@@ -105,6 +105,8 @@ function Scan.trainer(event)
   for k, row in pairs(rows) do entry.spells[k] = row end
   debug.saved = true
   savedThisVisit = true
+  -- 專業訓練師快取剛更新：視窗開著就重繪，標籤不用切分頁就變金色
+  if isProf and ns.Window and ns.Window.refreshIfShown then ns.Window.refreshIfShown() end
 end
 
 ns.onLoad = ns.onLoad or {}
@@ -161,20 +163,46 @@ function Scan.known()
   end
 end
 
--- 登入提示：學了但還沒開過視窗的專業（使用者 2026-11-08：不提示的話使用者不知道要開）
-function Scan.remindUnopened()
-  local char = SkillsItemsGuideCharDB
-  local missing = {}
-  for p in pairs(char.professions or {}) do
-    local id = tonumber(p)
-    if id and not (char.opened or {})[p] and ns.Data and ns.Data.professions and ns.Data.professions[id] then
-      missing[#missing + 1] = ns.L.prof(id)
+-- 有配方來源資料的專業 id 集合（佔位資料或零售版為空表）。trainer.prof 與 char.professions 的鍵同為 skillLine id
+local function sourceProfessions()
+  local D = ns.Data
+  local set = {}
+  if not (ns.Source and ns.Flavor and ns.Flavor.isForever() and D and D.meta and D.meta.sourcesGenerated and D.sources) then return set end
+  for _, rec in pairs(D.recipes or {}) do
+    for _, sp in ipairs(rec.spells or { rec.spell }) do
+      if D.sources[sp] then set[rec.p] = true end
     end
   end
-  if #missing == 0 then return end
-  table.sort(missing)
-  local msg = ns.L.ADDON_TITLE .. ns.L.COLON .. string.format(ns.L.NOT_OPENED_FMT, ns.L.join(missing))
-  if C_Timer and C_Timer.After then C_Timer.After(5, function() print(msg) end) else print(msg) end
+  return set
+end
+
+-- 登入提示：學了但還沒開過視窗的專業（使用者 2026-11-08：不提示的話使用者不知道要開）；
+-- 永恆版再加一行：學了但訓練師沒開過的專業（2026-11-22，需要玩家動作的功能要主動提示、做完就不再提示）
+function Scan.remindUnopened()
+  local char = SkillsItemsGuideCharDB
+  local db = SkillsItemsGuideDB or {}
+  local trainerProf = db.trainer and db.trainer.prof or {}
+  local withSources = sourceProfessions()
+  local missing, noTrainer = {}, {}
+  for p in pairs(char.professions or {}) do
+    local id = tonumber(p)
+    if id and ns.Data and ns.Data.professions and ns.Data.professions[id] then
+      if not (char.opened or {})[p] then missing[#missing + 1] = ns.L.prof(id) end
+      if withSources[id] and not trainerProf[p] then noTrainer[#noTrainer + 1] = ns.L.prof(id) end
+    end
+  end
+  if #missing == 0 and #noTrainer == 0 then return end
+  local lines = {}
+  if #missing > 0 then
+    table.sort(missing)
+    lines[#lines + 1] = ns.L.ADDON_TITLE .. ns.L.COLON .. string.format(ns.L.NOT_OPENED_FMT, ns.L.join(missing))
+  end
+  if #noTrainer > 0 then
+    table.sort(noTrainer)
+    lines[#lines + 1] = ns.L.ADDON_TITLE .. ns.L.COLON .. string.format(ns.L.TRAINER_NOT_OPENED_FMT, ns.L.join(noTrainer))
+  end
+  local function say() for _, m in ipairs(lines) do print(m) end end
+  if C_Timer and C_Timer.After then C_Timer.After(5, say) else say() end
 end
 
 table.insert(ns.onLoad, function()

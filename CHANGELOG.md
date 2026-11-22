@@ -2,6 +2,26 @@
 
 每個版本一段，標題是 `## <版本>`；段內小標用 `###`。發版時 GitHub Release 與 CurseForge 的更新說明取自對應的段落。
 
+## 0.5.0
+
+- 永恆：專業分頁的配方清單，有來源資料的列多一個「學會方式」標籤：自動學會（學會專業時就有）、配方（要靠配方書）、訓練師。打開過某專業的訓練師視窗後，該視窗列出的配方會改成金色訓練師標籤並加打勾（已確認）；同時也由配方書教的配方，確認後同樣改成金色訓練師標籤。沒確認的訓練師配方維持灰色（資料推定），沒有打勾；「訓練師（推定）」與提示只出現在資料推斷為訓練師教的配方，不是每個沒確認的配方都有
+- 永恆：登入時，如果有學的專業還沒打開過訓練師視窗，聊天視窗會多一行提醒（例：「急救、裁縫的訓練師還沒打開過，打開一次即可確認配方來源」）；每個專業的訓練師打開過一次就不再提醒
+- 永恆：配方名稱後面的色塊依你目前的專業技能，顯示這個配方對你的升技程度：橘、黃、綠、灰。只有你的角色有該專業時才會出現；已知可學門檻（配方書的需要技能，或打開過訓練師後記下的技能需求）而技能還不到時不顯示
+- 永恆：滑鼠移到專業清單的配方圖示，tooltip 新增「學會方式」段落：配方書（含需要的技能與等級）、聲望需求、陣營標示（[聯盟]／[部落]）、任務獎勵（含任務所在地區）。你自己陣營的來源排前面，另一陣營的整段灰字。每個配方最多列 3 本配方書、每本最多 3 個任務，其餘顯示「另有 N 個」。訓練師學費只在該訓練師確認後才顯示；未確認時顯示「訓練師（推定）」與提示，請到訓練師打開一次視窗
+- 永恆：同一個配方圖示 tooltip 新增「技能點數」段落，列出橘、黃、綠、灰各在技能幾點；橘色（可學門檻）取自配方書的需要技能或訓練師，兩者都還沒有時顯示「-」，打開過該專業的訓練師後補上
+- 永恆：「學會方式」裡的配方書名依物品品質上色（白、綠、藍、紫）
+- 永恆：滑鼠移到專業清單的配方圖示時，配方 tooltip 旁邊會顯示該配方第一本屬於你陣營（或不分陣營）的配方書的遊戲 tooltip；沒有屬於你陣營的配方書就不顯示。遊戲顯示裝備比較時，配方書排在比較 tooltip 的外側；螢幕右邊放不下時改放到左邊。「學會方式」與「技能點數」只出現在這個專業清單的配方圖示 tooltip，其他地方的物品 tooltip 沒有
+
+---
+
+- Forever: recipe rows in the Professions tab that have source data now show an acquisition label: Auto (learned with the profession), Recipe (needs a recipe book) or Trainer. After you open a profession's trainer window, the recipes that window lists switch to a gold Trainer label with a check mark (confirmed); a recipe that is also taught by a book switches to the gold Trainer label too once confirmed. Unconfirmed trainer recipes stay grey with no check mark (inferred from data); the "Trainer (inferred)" label and hint apply only to recipes the data infers as trainer-taught, not to every unconfirmed recipe.
+- Forever: on login, if a profession you know has never had its trainer window opened, one extra chat line reminds you (e.g. "Open the First Aid, Tailoring trainer once to confirm recipe sources"); it stops once each trainer has been opened.
+- Forever: a colored block after the recipe name shows how much the recipe can raise your current skill: orange, yellow, green or grey. It only appears if your character has that profession; when the recipe's minimum is known (from its recipe book, or recorded when you open the trainer) and your skill is below it, no block is shown.
+- Forever: hovering a recipe icon in the Professions list, the tooltip has a new "How to learn" section: recipe books (with required skill and level), reputation requirements, faction tags ([Alliance]/[Horde]) and quest rewards (with the quest's area). Sources for your own faction are listed first; the other faction's are greyed out. At most 3 recipe books per recipe and 3 quests per book are listed, the rest shown as "N more". The trainer cost is shown only once that trainer is confirmed; until then the section says "Trainer (inferred)" with a hint to open the trainer window once.
+- Forever: the same recipe icon tooltip has a new "Skill points" section listing the skill points where the recipe turns orange, yellow, green and grey. The orange value (the learning minimum) comes from the recipe book or the trainer; until either is known it shows "-", filled in once you open that profession's trainer.
+- Forever: recipe book names in "How to learn" are colored by item quality (white, green, blue, purple).
+- Forever: hovering a recipe icon in the Professions list also shows the game tooltip of the recipe's first recipe book that is for your faction (or for both factions) beside the recipe tooltip. If no book is for your faction, nothing extra is shown. When the game shows item comparison tooltips, the recipe book is placed outside them, and on the left if there is no room on the right. "How to learn" and "Skill points" appear only in this Professions list tooltip, not on item tooltips elsewhere.
+
 ## 0.4.1
 
 - 永恆資料更新到最新客戶端（1.60.1.71037）：職業技能清單與學習等級跟著遊戲調整（例：聖騎士、盜賊、德魯伊）

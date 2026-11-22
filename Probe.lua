@@ -21,12 +21,18 @@ Probe.APIS = {
   "WOW_PROJECT_ID", "C_TradeSkillUI.GetChildProfessionInfo", "C_TradeSkillUI.GetBaseProfessionInfo",
   "C_TradeSkillUI.GetProfessionInfoBySkillLineID", "C_Item.GetItemNameByID", "C_Item.RequestLoadItemDataByID",
   "GameTooltip.SetItemByID", "GameTooltip.SetSpellByID", "InCombatLockdown", "C_Timer.After",
+  -- 配方來源（plan 2026-11-22 Task 0）
+  "UnitFactionGroup", "GetFactionInfoByID", "C_Reputation.GetFactionDataByID", "GameTooltip.GetRight",
+  "GameTooltip.GetLeft", "GetScreenWidth", "GameTooltip.SetOwner", "GameTooltip.ClearLines",
+  "UIParent.GetScreenWidth", "GameTooltip.GetEffectiveScale",
 }
 
 Probe.TEMPLATES = {
   "BasicFrameTemplateWithInset", "UIPanelButtonTemplate", "UICheckButtonTemplate", "InputBoxTemplate",
   "UIPanelScrollFrameTemplate", "WowStyle1DropdownTemplate", "UIDropDownMenuTemplate", "TabSystemTemplate",
   "PanelTabButtonTemplate",
+  -- 配方來源（plan 2026-11-22 Task 0）
+  "GameTooltipTemplate", "ShoppingTooltipTemplate",
 }
 
 Probe.WIDGETS = { "Frame", "Button", "EditBox", "ScrollFrame", "CheckButton" }

@@ -208,3 +208,135 @@ ns.Window.setTab("item")
 ns.Window.setTab("prof")
 H.check(calls >= 1, "切回專業分頁會重算")
 ns.Window.recompute = orig
+
+-- ---------- 取得方式標籤與技能顏色圓點（Task 4）----------
+do
+  local skill, faction = 100, "Alliance"
+  local function bootSrc(locale, opts)
+    opts = opts or {}
+    H.reset({ locale = locale or "zhTW", extra = {
+      C_Item = { GetItemNameByID = function(id) return "名" .. id end, RequestLoadItemDataByID = function() end,
+        GetItemIconByID = function() return 1 end, GetItemInfo = function() return nil end },
+      C_Spell = { GetSpellName = function() return nil end, GetSpellTexture = function() return 1 end },
+      GameTooltip = { SetOwner = function() end, ClearLines = function() end, AddLine = function() end, Show = function() end, Hide = function() end },
+      hooksecurefunc = function() end,
+      UnitFactionGroup = function() return faction end,
+      GetProfessions = function() if opts.noProf then return nil end return 1 end,
+      GetProfessionInfo = function() return "裁縫", 0, skill, 300, 0, 0, 197 end,
+    } })
+    local n = H.load(files)
+    H.fire("ADDON_LOADED", "SkillsItemsGuide"); H.fire("PLAYER_LOGIN")
+    return n
+  end
+  local n = bootSrc()
+  n.Data.meta.sourcesGenerated = "2026-11-22" -- 列在建立時依這個決定寬度與換行，要在第一次 open 前設好
+  n.Window.open({ prof = 197 })
+  local list = n.Window.state().list
+  local sp = {}
+  for i = 1, 5 do sp[i] = n.Data.recipes[list[i]].spell end
+  local D = n.Data
+  D.meta.sourcesGenerated = "2026-11-22"
+  D.sources = {
+    [sp[1]] = { src = "auto" },
+    [sp[2]] = { src = "book", books = { { item = 900 } }, tr = { 10, 20, 30, 40 } },
+    [sp[3]] = { src = "trainer", tr = { 10, 50, 150, 200 } },
+    [sp[4]] = { src = "trainer", tr = { 90, 130, 140, 150 } },
+    -- sp[5] 沒有資料
+  }
+  D.sourceNamesByLocale = { zhTW = { quest = {}, area = {}, faction = {} }, enUS = { quest = {}, area = {}, faction = {} } }
+  n.Source.init()
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { [tostring(sp[3])] = { cost = 150 } } } } } }
+  n.Window.render()
+  local rows = n.Window._rows
+  H.eq(rows[1].name._width, 470, "永恆名稱寬度縮為 470")
+  H.eq(rows[1].name._wrap, false, "永恆名稱不換行")
+  H.eq(rows[1].src.text, "自動學會", "自動學會標籤")
+  H.eq(rows[1].src.color, n.Window.TAG_COLORS.auto, "自動學會灰白字")
+  H.eq(rows[2].src.text, "配方", "配方標籤")
+  H.eq(rows[2].src.color, n.Window.TAG_COLORS.book, "配方藍字")
+  H.eq(rows[3].src.kind, "trainerOk", "快取有這個法術 → 訓練師確認")
+  H.eq(rows[3].src.text, "訓練師", "訓練師標籤")
+  H.eq(rows[3].src.color, n.Window.TAG_COLORS.trainerOk, "訓練師確認金字")
+  H.eq(rows[4].src.kind, "trainer", "快取沒有 → 推定")
+  H.eq(rows[4].src.color, n.Window.TAG_COLORS.trainer, "訓練師推定灰字")
+  H.eq(rows[5].src, nil, "沒有資料的配方沒有標籤")
+  H.check(rows[1].tag._shown and not rows[5].tag._shown, "有資料才顯示標籤")
+  H.check(rows[3].tick._shown, "確認的訓練師顯示勾圖示")
+  H.check(not rows[1].tick._shown and not rows[2].tick._shown and not rows[4].tick._shown, "只有確認的訓練師有勾圖示")
+  -- 圓點：技能 100
+  H.eq(rows[1].src.dot, nil, "沒有 tr 不顯示圓點")
+  H.check(not rows[1].dot._shown, "沒有 tr 圓點隱藏")
+  H.eq(rows[2].src.dot, "x", "技能 100 >= 灰起點 40 → 灰")
+  H.eq(rows[3].src.dot, "y", "技能 100 介於黃 50 與綠 150 → 黃")
+  H.eq(rows[4].src.dot, "o", "技能 100 < 黃 130 → 橘")
+  H.eq(rows[4].dot._color[1], 1, "橘點色塊 R")
+  H.eq(rows[4].dot._color[2], 0.5, "橘點色塊 G")
+  H.eq(rows[4].dot._color[3], 0.25, "橘點色塊 B")
+  H.check(rows[4].dot._shown, "有顏色就顯示圓點")
+  skill = 160
+  n.Window.render()
+  H.eq(rows[3].src.dot, "g", "技能 160 → 綠")
+  H.eq(rows[3].dot._color[2], 0.75, "綠點色塊 G")
+  H.eq(rows[4].dot._color[1], 0.5, "灰點色塊 R")
+  H.eq(rows[4].src.dot, "x", "技能 160 >= 150 → 灰")
+  -- 沒學這個專業：沒有圓點，標籤仍在
+  local n2 = bootSrc("zhTW", { noProf = true })
+  n2.Data.meta.sourcesGenerated = "x"
+  n2.Data.sources = { [sp[2]] = { src = "book", books = { { item = 900 } }, tr = { 10, 20, 30, 40 } } }
+  n2.Window.open({ prof = 197 })
+  local r2
+  for _, r in ipairs(n2.Window._rows) do if r.rid and n2.Data.recipes[r.rid].spell == sp[2] and r._shown then r2 = r end end
+  H.check(r2 and r2.src and r2.src.kind == "book", "沒學專業仍有標籤")
+  H.eq(r2.src.dot, nil, "沒學這個專業 → 沒有圓點資訊")
+  H.check(not r2.dot._shown, "沒學這個專業 → 圓點隱藏")
+  -- 訓練師快取鍵格式
+  local set = n.Window.trainerSpellSet
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { ["100"] = { cost = 5 }, ["200"] = { skill = 1 } } } } } }
+  local ts = set(197)
+  H.eq(ts[100], 5, "數字鍵：有學費用學費")
+  H.eq(ts[200], true, "數字鍵：沒學費用 true")
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { ["100"] = {}, ["亞麻繃帶|1"] = {} } } } } }
+  local partial = set(197)
+  H.eq(partial and partial[100], true, "混有非數字鍵：數字鍵仍確認")
+  local cnt = 0
+  for _ in pairs(partial or {}) do cnt = cnt + 1 end
+  H.eq(cnt, 1, "非數字鍵逐筆略過，不納入集合")
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { ["1x"] = {} } } } } }
+  H.eq(set(197), nil, "全部都是非純數字字串 → 沒有可確認的 → nil")
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { ["100"] = { skill = 40, cost = 5 }, ["200"] = { skill = 0 }, ["x|1"] = { skill = 9 }, ["300"] = {} } } } } }
+  local sk = n.Window.trainerSkillSet(197)
+  H.eq(sk[100], 40, "訓練師快取 skill 欄 → 學會門檻")
+  H.eq(sk[200], nil, "skill=0 視為未知")
+  H.eq(sk[300], nil, "沒有 skill 欄 → 不收")
+  H.eq(sk[0], nil, "非數字鍵略過")
+  H.eq(n.Window.trainerSkillSet(171), nil, "沒有快取 → nil")
+  SkillsItemsGuideDB = {}
+  H.eq(set(197), nil, "沒有快取 → nil")
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { ["100"] = {} } } } } }
+  H.eq(set(171), nil, "別的專業沒有快取 → nil")
+  -- 非數字鍵：推定的訓練師不會變確認
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { ["名稱|1"] = {} } } } } }
+  n.Window.render()
+  H.eq(rows[3].src.kind, "trainer", "快取鍵全是非數字時清單不確認")
+  H.check(not rows[3].tick._shown, "非數字鍵不顯示勾")
+  SkillsItemsGuideDB = { trainer = { prof = { ["197"] = { spells = { [tostring(sp[3])] = {}, ["名稱|1"] = {} } } } } }
+  n.Window.render()
+  H.eq(rows[3].src.kind, "trainerOk", "混有非數字鍵時，數字鍵那筆仍確認")
+  -- 佔位資料（sourcesGenerated 為 nil）：永恆也維持舊寬度與換行、沒有標籤
+  local np = bootSrc("zhTW")
+  np.Data.meta.sourcesGenerated = nil -- 本來就是佔位；明寫以示意圖
+  np.Window.open({ prof = 197 })
+  H.eq(np.Window._rows[1].name._width, 600, "佔位資料：名稱維持 600 寬")
+  H.check(np.Window._rows[1].name._wrap ~= false, "佔位資料：名稱維持換行")
+  H.check(not np.Window._rows[1].tag._shown, "佔位資料：沒有標籤")
+  -- 英文客戶端：標籤無 CJK
+  local ne = bootSrc("enUS")
+  ne.Data.meta.sourcesGenerated = "x"
+  ne.Data.sources = { [sp[1]] = { src = "auto" }, [sp[2]] = { src = "book", books = { { item = 900 } } }, [sp[3]] = { src = "trainer" } }
+  ne.Window.open({ prof = 197 })
+  for i = 1, 3 do
+    local t = ne.Window._rows[i].tag:GetText()
+    H.check(t ~= "" and not t:find("[\228-\233][\128-\191][\128-\191]"), "英文標籤無 CJK：" .. t)
+  end
+  H.eq(ne.Window._rows[2].tag:GetText(), "Recipe", "英文配方標籤")
+end
