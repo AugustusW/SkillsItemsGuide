@@ -52,6 +52,8 @@ table.insert(ns.onLoad, function()
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
       -- 並排的配方書 tooltip 只顯示遊戲原本的內容，不加數量行與拆解樹
       if ns.SourceTip and ns.SourceTip.isSourceTip(tooltip) then return end
+      -- 物品等級先插（改名稱下一行），再由 Tooltip.add 在最下面加專業數量
+      if ns.ItemLevel then ns.ItemLevel.add(tooltip, data and data.id) end
       Tooltip.add(tooltip, data and data.id)
       if ns.Window and ns.Window.addTreeIfOwned then ns.Window.addTreeIfOwned(tooltip) end
     end)

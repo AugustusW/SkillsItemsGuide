@@ -2,6 +2,14 @@
 
 每個版本一段，標題是 `## <版本>`；段內小標用 `###`。發版時 GitHub Release 與 CurseForge 的更新說明取自對應的段落。
 
+## 0.5.1
+
+- 永恆：滑鼠移到武器或護甲上，遊戲 tooltip 的名稱下一行會顯示金色的「物品等級 N」，背包、銀行、角色裝備欄、商人、聊天連結與裝備比較框都有。等級以遊戲回報的為準，遊戲還沒有資料時用插件內建的物品資料。襯衫與公會袍不顯示
+
+---
+
+- Forever: hovering a weapon or armour piece shows a gold "Item Level N" line right under the item name in the game tooltip, in bags, the bank, the character panel, merchants, chat links and the equipped-item comparison. The level comes from the game; when the game has no data yet, the addon's bundled item data is used. Shirts and tabards are skipped.
+
 ## 0.5.0
 
 - 永恆：專業分頁的配方清單，有來源資料的列多一個「學會方式」標籤：自動學會（學會專業時就有）、配方（要靠配方書）、訓練師。打開過某專業的訓練師視窗後，該視窗列出的配方會改成金色訓練師標籤並加打勾（已確認）；同時也由配方書教的配方，確認後同樣改成金色訓練師標籤。沒確認的訓練師配方維持灰色（資料推定），沒有打勾；「訓練師（推定）」與提示只出現在資料推斷為訓練師教的配方，不是每個沒確認的配方都有
