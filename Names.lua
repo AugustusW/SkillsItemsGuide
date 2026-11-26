@@ -27,8 +27,8 @@ local function tick()
 end
 
 local function fallback(id)
-  -- 打包的是官方 API 的 zh_TW 名稱，只在繁中 client 用
-  if GetLocale and GetLocale() == "zhTW" then
+  -- 打包的是官方 API 的 zh_TW 名稱，只在名稱語言是繁中時用（繁中客戶端跟隨遊戲，或手動切成繁中）
+  if ns.nameLang() == "zhTW" then
     local t = ns.Data and ns.Data.itemNames
     if t and t[id] then return t[id] end
   end
@@ -38,6 +38,11 @@ end
 
 function Names.item(id)
   if not id then return nil end
+  -- 顯示語言 ≠ 客戶端：遊戲名稱是另一種語言，打包名稱優先；沒有才往下用遊戲的
+  if ns.useBundled() then
+    local b = fallback(id)
+    if b then return b end
+  end
   local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
   if name then return name end
   local n = tries[id] or 0
@@ -66,10 +71,53 @@ end
 
 function Names.prof(id) return ns.L.prof(id) end
 
+-- 打包的中英法術名稱（Data/Forever/LangNames.lua）：每種語言第一次需要時才解
+local spellPacked = {}
+local function packedSpell(id, lang)
+  local src = ns.Data and ns.Data.spellNames
+  if not (src and src.ids and src[lang]) then return nil end
+  local t = spellPacked[lang]
+  if not t then
+    t = {}
+    local ids, prev = {}, 0
+    for d in src.ids:gmatch("(%w+)\n") do prev = prev + tonumber(d, 36); ids[#ids + 1] = prev end
+    local k = 0
+    for n in src[lang]:gmatch("([^\n]*)\n") do
+      k = k + 1
+      if n ~= "" and ids[k] then t[ids[k]] = n end
+    end
+    spellPacked[lang] = t
+  end
+  return t[id]
+end
+function Names._resetSpellCache() spellPacked = {} end -- 測試換資料用
+
+local function gameSpell(id) return C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id) or nil end
+
+-- 法術名稱：顯示語言 ≠ 客戶端時打包名稱優先，否則遊戲名稱（客戶端語言）
+function Names.spell(id)
+  if not id then return nil end
+  if ns.useBundled() then
+    local b = packedSpell(id, ns.lang())
+    if b then return b end
+  end
+  return gameSpell(id)
+end
+
+-- 法術子標題（「等級 5」）：顯示語言 ≠ 客戶端時，只有一個數字的子標題用插件的格式重組，其他照遊戲給的
+function Names.spellSub(id)
+  local sub = C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(id)
+  if sub and sub ~= "" and ns.useBundled() then
+    local n = sub:match("^%D*(%d+)%D*$")
+    if n then return string.format(ns.L.RANK_FMT, tonumber(n)) end
+  end
+  return sub
+end
+
 function Names.recipe(rid)
   local rec = ns.Data.recipes[rid]
   local sp = rec and rec.spell
-  return sp and C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(sp) or nil
+  return sp and Names.spell(sp) or nil
 end
 
 -- 法術連結：C_Spell.GetSpellLink 的名稱帶等級（「英勇打擊 (等級 1)」），送出後伺服器不認、變純文字；

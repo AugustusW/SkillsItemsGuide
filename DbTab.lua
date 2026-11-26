@@ -309,7 +309,7 @@ local function sideButton(S, parent, i, gap, label, filter, onClick)
   local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
   b:SetSize(130, 18)
   b:SetPoint("TOPLEFT", 6, -4 - (i - 1) * 20 - gap)
-  b:SetText(label)
+  L.bind(b, label) -- Locale key 或函式
   b.match = function(f) -- 類別下拉（cls）不影響左側按鈕的亮起
     return f.kind == filter.kind and f.prof == filter.prof and f.classId == filter.classId
   end
@@ -331,7 +331,7 @@ local function buildPanel(S, panel, searchLabel, sourceText)
   ui.search:SetScript("OnHide", function(self) self:ClearFocus() end)
   ui.searchLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   ui.searchLabel:SetPoint("LEFT", ui.search, "RIGHT", 8, 0)
-  ui.searchLabel:SetText(searchLabel)
+  L.bind(ui.searchLabel, searchLabel)
   ui.header = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   ui.header:SetPoint("TOPLEFT", 152, -30)
   ui.header:SetWidth(560)
@@ -359,19 +359,19 @@ local function buildPanel(S, panel, searchLabel, sourceText)
   -- 暴雪 API 條款：清楚標明資料來源（物品資料的版本與匯出日期）
   ui.source = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   ui.source:SetPoint("BOTTOMRIGHT", -10, 8)
-  ui.source:SetText(sourceText)
+  L.bind(ui.source, sourceText)
 end
 
 local function buildItems(panel)
   local m = ns.Data.meta or {}
-  buildPanel(I, panel, L.DB_SEARCH_ITEM,
-    string.format(L.DB_SOURCE_FMT, tostring(m.itemsVersion or m.profVersion), tostring(m.itemsGenerated or m.generated)))
+  buildPanel(I, panel, "DB_SEARCH_ITEM",
+    function() return string.format(L.DB_SOURCE_FMT, tostring(m.itemsVersion or m.profVersion), tostring(m.itemsGenerated or m.generated)) end)
   local ui = I.ui
   ui.search:SetScript("OnTextChanged", function(self) DbTab.setItemSearch(self:GetText()) end)
   ui.back = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   ui.back:SetSize(80, 20)
   ui.back:SetPoint("TOPRIGHT", -12, -2)
-  ui.back:SetText(L.DB_BACK_LIST)
+  L.bind(ui.back, "DB_BACK_LIST")
   ui.back:SetScript("OnClick", DbTab.backToList)
   ui.back:Hide()
   ui.headBtn = CreateFrame("Button", nil, panel)
@@ -393,10 +393,10 @@ local function buildItems(panel)
     n = n + 1
     sideButton(I, panel, n, gap, label, filter, function() DbTab.setItemFilter(filter) end)
   end
-  add(L.DB_ALL, { kind = "all" }, 0)
-  add(L.DB_MAT, { kind = "mat" }, 0)
-  add(L.DB_PRODUCT, { kind = "product" }, 0)
-  for _, id in ipairs(profIds()) do add(L.prof(id), { kind = "all", prof = id }, 8) end
+  add("DB_ALL", { kind = "all" }, 0)
+  add("DB_MAT", { kind = "mat" }, 0)
+  add("DB_PRODUCT", { kind = "product" }, 0)
+  for _, id in ipairs(profIds()) do add(function() return L.prof(id) end, { kind = "all", prof = id }, 8) end
   -- 類別下拉（新式下拉，永恆實測可用；沒有 SetupMenu 的客戶端就不顯示）
   local ok, dd = pcall(CreateFrame, "DropdownButton", nil, panel, "WowStyle1DropdownTemplate")
   if ok and dd and dd.SetupMenu then
@@ -435,22 +435,27 @@ end
 local function buildSpells(panel)
   -- 法術：職業技能來自遊戲客戶端資料表（wago.tools），配方法術的配方來自 Blizzard API
   local m = ns.Data.meta or {}
-  buildPanel(P, panel, L.DB_SEARCH_SPELL,
-    string.format(L.DB_SPELL_SOURCE_FMT, tostring(m.classBuild), tostring(m.profVersion)))
+  buildPanel(P, panel, "DB_SEARCH_SPELL",
+    function() return string.format(L.DB_SPELL_SOURCE_FMT, tostring(m.classBuild), tostring(m.profVersion)) end)
   P.ui.search:SetScript("OnTextChanged", function(self) DbTab.setSpellSearch(self:GetText()) end)
   local n = 0
   local function add(label, filter, gap)
     n = n + 1
     sideButton(P, panel, n, gap, label, filter, function() DbTab.setSpellFilter(filter) end)
   end
-  add(L.DB_ALL, { kind = "all" }, 0)
-  add(L.DB_RECIPE, { kind = "recipe" }, 0)
-  add(L.DB_CLASS, { kind = "class" }, 0)
-  for _, id in ipairs(profIds()) do add(L.prof(id), { kind = "recipe", prof = id }, 8) end
+  add("DB_ALL", { kind = "all" }, 0)
+  add("DB_RECIPE", { kind = "recipe" }, 0)
+  add("DB_CLASS", { kind = "class" }, 0)
+  for _, id in ipairs(profIds()) do add(function() return L.prof(id) end, { kind = "recipe", prof = id }, 8) end
   for _, id in ipairs(ns.Skills.CLASS_ORDER) do
-    add(classColorCode(id), { kind = "class", classId = id }, 16) -- 職業名用職業色
+    add(function() return classColorCode(id) end, { kind = "class", classId = id }, 16) -- 職業名用職業色
   end
 end
 
-W.registerTab("item", L.TAB_ITEM, buildItems, function() refresh(I) end, function() refresh(I) end)
-W.registerTab("spell", L.TAB_SPELL, buildSpells, function() refresh(P) end, function() refresh(P) end)
+W.registerTab("item", "TAB_ITEM", buildItems, function() refresh(I) end, function() refresh(I) end)
+W.registerTab("spell", "TAB_SPELL", buildSpells, function() refresh(P) end, function() refresh(P) end)
+
+-- 語言切換：下拉的目前選項由 SetupMenu 產生（L.rebind 碰不到），要重新產生；另一個分頁的狀態下次顯示時重算
+table.insert(ns.onLangChanged, function()
+  for _, dd in ipairs({ I.ui and I.ui.dd, I.ui and I.ui.qdd }) do if dd and dd.GenerateMenu then dd:GenerateMenu() end end
+end)

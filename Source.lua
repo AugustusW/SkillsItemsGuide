@@ -26,20 +26,18 @@ local Source = {}
 ns.Source = Source
 
 local MAX_BOOKS, MAX_QUESTS = 3, 3
-local NAMES -- 只留客戶端語系那一份
-
--- 載入時選語系並釋放另一份；測試換資料後可再呼叫
-function Source.init()
-  local D = ns.Data
-  local all = D and D.sourceNamesByLocale
-  NAMES = nil
-  if all then
-    local want = GetLocale() == "zhTW" and "zhTW" or "enUS"
-    NAMES = all[want]
-    all.zhTW, all.enUS = nil, nil
-    all[want] = NAMES
-  end
+-- 任務、地區、陣營名稱：兩種語言都保留，每次依名稱語言取（語言切換可立即生效）。
+-- 名稱語言：顯示語言 ≠ 客戶端時用顯示語言；否則繁中客戶端用繁中，其他一律英文（與 0.5 相同）
+local NAMES
+local function names()
+  local all = ns.Data and ns.Data.sourceNamesByLocale
+  if not all then return nil end
+  local want = ns.useBundled() and ns.lang() or (ns.clientLang() == "zhTW" and "zhTW" or "enUS")
+  return all[want]
 end
+
+-- 舊介面：測試換資料後呼叫（現在每次都即時取，不再快取）
+function Source.init() NAMES = nil end
 
 local function entry(spell)
   local D = ns.Data
@@ -113,9 +111,9 @@ local function stableBySide(list, sideOf, mine)
 end
 
 local function repLabel(rank)
-  -- 陣營名稱只有 zhTW／enUS 兩份；其他語系的遊戲全域字串會跟陣營名稱語言不一致，改用插件自己的等級名
-  local loc = GetLocale()
-  if loc == "zhTW" or loc == "enUS" then
+  -- 陣營名稱只有 zhTW／enUS 兩份；其他語系的遊戲全域字串會跟陣營名稱語言不一致，改用插件自己的等級名。
+  -- 顯示語言 ≠ 客戶端時遊戲全域字串是另一種語言，同樣改用插件自己的
+  if not ns.useBundled() and ns.clientLang() then
     local g = _G["FACTION_STANDING_LABEL" .. tostring(rank)]
     if type(g) == "string" and g ~= "" then return g end
   end
@@ -129,6 +127,7 @@ local function condition(b)
   if b.skill then parts[#parts + 1] = string.format(L.SRC_REQ_SKILL_FMT, b.skill) end
   if b.lv then parts[#parts + 1] = string.format(L.SRC_REQ_LEVEL_FMT, b.lv) end
   if b.bind == 1 then parts[#parts + 1] = L.SRC_BIND_1 elseif b.bind == 2 then parts[#parts + 1] = L.SRC_BIND_2 end
+  NAMES = names()
   if b.fac and NAMES and NAMES.faction and NAMES.faction[b.fac] then
     local rank = b.rep and repLabel(b.rep)
     parts[#parts + 1] = rank and string.format(L.SRC_REP_FMT, esc(NAMES.faction[b.fac]), rank) or esc(NAMES.faction[b.fac])
@@ -140,6 +139,7 @@ end
 -- 任務文字：有名稱＝名稱（地區）；只有地區＝只列地區；都沒有＝nil（略過）。只用客戶端語系那份名稱
 local function questText(qid)
   local L = ns.L
+  NAMES = names()
   local name = esc(NAMES and NAMES.quest and NAMES.quest[qid])
   local area = esc(NAMES and NAMES.area and NAMES.area[qid])
   if name then

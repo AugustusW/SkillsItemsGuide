@@ -1,6 +1,19 @@
 # Changelog
 
 每個版本一段，標題是 `## <版本>`；段內小標用 `###`。發版時 GitHub Release 與 CurseForge 的更新說明取自對應的段落。
+0.6.0 起每段英文在上、中文在下，中間用 `---` 分隔。
+
+## 0.6.0
+
+- Forever: new setting under Options > AddOns > SkillsItemsGuide to choose the addon's language: Follow game (default), 繁體中文 (Traditional Chinese) or English. It takes effect immediately, without /reload, and is remembered across logins. Players on English-only clients (for example US realms) can now use the addon in Traditional Chinese.
+- Forever: when the chosen language differs from the game client, item, recipe, spell and class skill names, item categories, spell ranks, cooldown times and reputation levels in the addon window also switch to that language, using names bundled with the addon. The game's own tooltips and chat links stay in the client language.
+- With "Follow game", the addon looks and behaves exactly as in 0.5.1. The download grows by about 150 KB of bundled names; they are only unpacked when a different language is chosen.
+
+---
+
+- 永恆：「選項 → 插件 → 技能物品指南」新增語言設定：跟隨遊戲（預設）、繁體中文、English。點了立即生效，不需要 /reload，跨登入保留。只能用英文客戶端的玩家（例如美服）也能用繁中介面
+- 永恆：選的語言與遊戲客戶端不同時，插件視窗裡的物品、配方、法術、職業技能名稱，以及物品類別、法術等級、冷卻時間、聲望等級，也會改用插件內附的該語言名稱。遊戲本身的提示框與聊天連結仍是客戶端語言
+- 停在「跟隨遊戲」時，畫面與操作跟 0.5.1 完全相同。下載檔多約 150 KB 的內附名稱，只有選了不同語言才會解開
 
 ## 0.5.1
 

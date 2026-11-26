@@ -7,7 +7,7 @@ local L = ns.L
 local DbIndex = {}
 ns.DbIndex = DbIndex
 
-local info, sortedItems, supOf, all
+local info, sortedItems, supOf, all, allOrder
 
 -- 永恆全部物品（Data/Forever/Items.lua 的長字串）：第一次用到才解開。
 -- 一行：<id 差 36 進位>,<品質>,<類別 36>,<子類別 36>,<物品等級 36>,<名稱>（產生端 tools/build_data.py encode_items）
@@ -24,25 +24,41 @@ function DbIndex.allItems()
       il = il ~= "" and tonumber(il, 36) or nil, name = name }
     order[#order + 1] = prev
   end
-  -- 英文名稱（一行一個、順序同 rows）：只有英文客戶端才解
-  local loc = GetLocale and GetLocale()
-  if src.en and (loc == "enUS" or loc == "enGB") then
-    local k = 0
-    for n in src.en:gmatch("([^\n]*)\n") do
-      k = k + 1
-      if n ~= "" and order[k] then all[order[k]].en = n end
-    end
-  end
+  allOrder = order
   return all
 end
 
--- 打包的名稱（繁中或英文客戶端）；沒有回 nil
-function DbIndex.bundledName(id)
+-- 英文名稱（一行一個、順序同 rows）：第一次需要時才解（繁中使用者跟隨遊戲時不解，不多佔記憶體）
+local enDecoded = false
+function DbIndex.decodeEn()
+  local a = DbIndex.allItems()
+  if enDecoded then return a end
+  enDecoded = true
+  local src = ns.Data.allItems
+  if src and src.en and allOrder then
+    local k = 0
+    for n in src.en:gmatch("([^\n]*)\n") do
+      k = k + 1
+      if n ~= "" and allOrder[k] then a[allOrder[k]].en = n end
+    end
+  end
+  return a
+end
+
+local function packed(id, lang)
   local a = DbIndex.allItems()[id]
   if not a then return nil end
-  local n = GetLocale and GetLocale() == "zhTW" and a.name or a.en
+  local n
+  if lang == "zhTW" then n = a.name elseif lang == "enUS" then n = DbIndex.decodeEn()[id].en end
   return n ~= "" and n or nil
 end
+
+
+-- 客戶端語言的打包名稱（比對遊戲文字用：ItemLevel 的 tooltip 名稱行），跟顯示語言無關
+function DbIndex.clientName(id) return packed(id, ns.clientLang()) end
+
+-- 畫面用的打包名稱；沒有回 nil
+function DbIndex.bundledName(id) return packed(id, ns.nameLang()) end
 
 -- 畫面上的名稱：遊戲名稱優先，還沒載入時用打包名稱
 function DbIndex.displayName(id)
@@ -58,13 +74,13 @@ function DbIndex.quality(id)
 end
 
 -- 搜尋用名稱：繁中、英文直接用打包名稱（不向伺服器請求）；其他語系只搜專業物品（走 Names.item）
-local zh = GetLocale and GetLocale() == "zhTW"
-local function searchName(id)
-  if zh then
+-- lang：名稱語言（ns.nameLang，DbIndex.items 開頭算一次往下傳）
+local function searchName(id, lang)
+  if lang == "zhTW" then
     local n = ns.Data.itemNames and ns.Data.itemNames[id]
     if n then return n, false end
   end
-  local b = DbIndex.bundledName(id) -- 繁中或英文客戶端：直接比對打包名稱，不向伺服器請求
+  local b = packed(id, lang) -- 名稱語言是繁中或英文：直接比對打包名稱，不向伺服器請求
   if b then return b, false end
   if info[id] and info[id].total > 0 then
     local n = ns.Names.item(id)
@@ -125,12 +141,19 @@ local function nameMatches(name, id, q)
   return name:find(q, 1, true) ~= nil, false
 end
 
--- 類別名稱：打包的是繁中；其他語系先跟遊戲要當地語言的名稱，拿不到才用打包的
+-- 類別名稱：打包的是繁中（另有英文 itemClassesEn）；跟隨遊戲時非繁中客戶端先跟遊戲要當地語言的名稱，拿不到才用打包的
 function DbIndex.className(c, s)
   local cls = ns.Data.itemClasses and ns.Data.itemClasses[c]
   if not cls then return nil, nil end
   local name, sub = cls.name, s and cls.sub and cls.sub[s]
-  if not zh and C_Item then
+  if ns.useBundled() then
+    if ns.lang() == "enUS" then
+      local en = ns.Data.itemClassesEn and ns.Data.itemClassesEn[c]
+      if en then name = en.name or name; if s then sub = (en.sub and en.sub[s]) or sub end end
+    end
+    return name, sub
+  end
+  if ns.clientLang() ~= "zhTW" and C_Item then
     name = (C_Item.GetItemClassInfo and C_Item.GetItemClassInfo(c)) or name
     if s then sub = (C_Item.GetItemSubClassInfo and C_Item.GetItemSubClassInfo(c, s)) or sub end
   end
@@ -143,6 +166,7 @@ function DbIndex.items(filter, query)
   filter = filter or {}
   local kind = filter.kind or "all"
   local list, loading = {}, false
+  local lang = ns.nameLang() -- 整個迴圈語言不變，算一次往下傳（每按一鍵掃約 1.8 萬筆）
   for _, id in ipairs(sortedItems) do
     local i = info[id]
     local keep = (kind == "all" or (kind == "mat" and i.isMat) or (kind == "product" and i.isProduct))
@@ -153,7 +177,7 @@ function DbIndex.items(filter, query)
       keep = q == filter.q
     end
     if keep and query and query ~= "" then
-      local name, pending = searchName(id)
+      local name, pending = searchName(id, lang)
       if pending then loading = true end
       keep = name ~= nil and name:find(query, 1, true) ~= nil
     end
@@ -195,7 +219,7 @@ local function buildSup()
   end
 end
 
-local function spellName(id) return C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id) end
+local function spellName(id) return ns.Names.spell(id) end
 
 -- filter = { kind = "all"|"recipe"|"class", prof = id|nil, classId = id|nil }
 function DbIndex.spells(filter, query)
@@ -247,7 +271,7 @@ local STATUS_LABEL = { learned = "SHOW_LEARNED", available = "SHOW_AVAILABLE", t
 
 -- 法術名＋子標題（「火球術 等級 5」），同職業技能分頁
 function DbIndex.spellTitle(spell)
-  local sub = C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(spell)
+  local sub = ns.Names.spellSub(spell)
   return (spellName(spell) or ("#" .. spell)) .. (sub and sub ~= "" and (" " .. sub) or "")
 end
 

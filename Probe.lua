@@ -25,6 +25,8 @@ Probe.APIS = {
   "UnitFactionGroup", "GetFactionInfoByID", "C_Reputation.GetFactionDataByID", "GameTooltip.GetRight",
   "GameTooltip.GetLeft", "GetScreenWidth", "GameTooltip.SetOwner", "GameTooltip.ClearLines",
   "UIParent.GetScreenWidth", "GameTooltip.GetEffectiveScale",
+  -- 語言切換（plan 2026-11-27 Task 1）
+  "Settings.RegisterCanvasLayoutCategory", "Settings.RegisterAddOnCategory", "Settings.OpenToCategory", "CreateFont",
 }
 
 Probe.TEMPLATES = {

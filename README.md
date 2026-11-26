@@ -6,6 +6,7 @@ An addon for **World of Warcraft: Forever** (Interface 16001) and **Retail** (Mi
 
 - Hold **Shift** on an item to see recipes from your professions that use it (green = learned).
 - **Alt+left-click** an item in your bags, type `/sig`, or click the entry in the addon compartment next to the minimap to open the full window.
+- Forever: choose the addon language under Options > AddOns > SkillsItemsGuide (Follow game, 繁體中文 or English). Players on English-only clients can switch the addon to Traditional Chinese; the game's own tooltips and chat links stay in the client language.
 - Open each profession window once to mark learned recipes (on Forever, also your class trainer to fill in training costs). On Retail, ranked recipes count as learned when any rank is known.
 - Download: [CurseForge](https://www.curseforge.com/wow/addons/skillsitemsguide). Support: support@augustusw.com · [Buy me a coffee / 請我喝杯咖啡](https://link.augustusw.com/coffee). License: MIT.
 
@@ -35,6 +36,7 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
   - 職業技能分頁（永恆限定）：職業下拉、搜尋、已學會／可以學／等級還不到篩選、學費
   - 物品分頁（永恆限定）：搜尋永恆全部物品（約 1.8 萬筆），依材料／成品、專業與物品類別篩選；點一下看由哪些配方製作、用在哪些配方，再點配方跳到專業分頁的拆解
   - 法術分頁（永恆限定）：搜尋職業技能與專業配方法術，依職業或專業篩選；點一下跳到職業技能分頁或專業分頁的那一列
+- 語言（永恆限定）：「選項 → 插件 → 技能物品指南」可選跟隨遊戲、繁體中文或 English，立即生效。英文客戶端（例如美服）也能切成繁中；遊戲本身的提示框與聊天連結仍是客戶端語言
 - `/sigcheck`：檢查已學配方和打包資料對得上多少
 - `/sigprobe`：開發用的 API 探測
 
@@ -58,6 +60,7 @@ If this addon helps you, a star on the repo helps other players find it. 覺得�
 - 永恆全部物品（物品分頁）：同一份官方 Web API 資料（`static-1.60.1_70399-forever-tw`），經 `tools/build_data.py items` 產生
 - 正式版專業：官方 Web API（`static-12.1.5_70077-tw`）＋ wago.tools 12.1.5 客戶端資料表的材料槽與品質，經 `tools/build_data.py retail` 產生
 - 職業技能、冷卻、配方對應法術：wago.tools 的 1.60.1.71037 客戶端資料表
+- 語言切換用的中英法術名稱與物品類別英文名稱：wago.tools 1.60.1.71037 客戶端資料表（`SpellName`、`ItemClass`、`ItemSubClass`），經 `tools/build_data.py langnames` 產生
 - 遊戲內 API 白名單：`/sigprobe` 在 build 1.60.1.70862 的結果（`tools/gen_manifest.py`）
 
 ## 開發

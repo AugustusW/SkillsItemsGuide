@@ -23,6 +23,8 @@ local names = {}
 for _, n in ipairs(ns.Probe.APIS) do names[n] = true end
 H.check(names["C_TradeSkillUI.GetChildProfessionInfo"] and names["GameTooltip.SetItemByID"] and names["WOW_PROJECT_ID"],
   "APIS 包含正式版要確認的項目")
+H.check(names["Settings.RegisterCanvasLayoutCategory"] and names["Settings.RegisterAddOnCategory"]
+  and names["Settings.OpenToCategory"] and names["CreateFont"], "APIS 包含語言切換設定頁要確認的項目")
 
 -- 沒有 C_TradeSkillUI（或視窗沒開）時不報錯
 H.reset({ locale = "zhTW", extra = {} })

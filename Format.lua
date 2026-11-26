@@ -14,7 +14,19 @@ local function recipeTitle(names, rid)
 end
 Format.recipeTitle = recipeTitle
 
+-- 顯示語言 ≠ 客戶端時遊戲的 SecondsToTime 是另一種語言：插件自己排（取最大的兩個單位）
+local function ownDuration(sec)
+  local d, h, m = math.floor(sec / 86400), math.floor(sec % 86400 / 3600), math.floor(sec % 3600 / 60)
+  local parts = {}
+  for _, u in ipairs({ { d, L.DUR_D_FMT }, { h, L.DUR_H_FMT }, { m, L.DUR_M_FMT } }) do
+    if u[1] > 0 and #parts < 2 then parts[#parts + 1] = string.format(u[2], u[1]) end
+  end
+  if #parts == 0 then return string.format(L.DUR_M_FMT, 0) end
+  return table.concat(parts, " ")
+end
+
 function Format.duration(sec)
+  if ns.useBundled() then return ownDuration(sec) end
   if SecondsToTime then return SecondsToTime(sec) end
   local h = math.floor(sec / 3600)
   return h .. "h"

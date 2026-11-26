@@ -1,4 +1,5 @@
--- 介面文字與標點：依客戶端語系（GetLocale）。zhTW 用中文與全形標點，其他語系一律英文。
+-- 介面文字與標點：依顯示語言（ns.lang()）。zhTW 用中文與全形標點，其他一律英文。
+-- 顯示語言＝設定（SkillsItemsGuideDB.lang，永恆的設定頁）或客戶端語系。語系判斷只在這個檔（spec 2026-11-27 語言切換）。
 local _, ns = ...
 
 local LOCALES = {}
@@ -30,7 +31,9 @@ LOCALES.enUS = {
   DB_ITEM_HINT = "Hover a row for the game tooltip; click a recipe-related item for details; Shift+click links it; Ctrl+click to try on",
   DB_SPELL_HINT = "Hover a row for the game tooltip; click to jump to it in its tab",
   DB_BACK_LIST = "< List", DB_MADE_BY_FMT = "Made by these recipes (%d)", DB_USED_BY_FMT = "Used in these recipes (%d)",
-  TT_ILVL_FMT = "Item Level %d",
+  SET_TITLE = "Language", SET_DESC = "Language for this addon's interface and names. The game's own tooltips and chat links stay in the game language.",
+  SET_FOLLOW_FMT = "Follow game (now: %s)",
+  TT_ILVL_FMT = "Item Level %d", RANK_FMT = "Rank %d", DUR_D_FMT = "%d Day", DUR_H_FMT = "%d Hr", DUR_M_FMT = "%d Min",
   DB_ILVL_FMT = "item level %d", DB_OVERFLOW_FMT = "...%d more, use search or a filter on the left", DB_MORE_FMT = "Show more (%d left)",
   TO_PROF = "Professions >", TO_SKILL = "Class skills >",
   DB_SOURCE_FMT = "Data: Blizzard API (%s, exported %s)",
@@ -88,7 +91,9 @@ LOCALES.zhTW = {
   DB_ITEM_HINT = "滑鼠移到列上看遊戲 tooltip；有「>」的點一下看配方；Shift+點貼連結；Ctrl+點試穿",
   DB_SPELL_HINT = "滑鼠移上去看遊戲 tooltip；點一下跳到對應分頁的那一列",
   DB_BACK_LIST = "← 清單", DB_MADE_BY_FMT = "由這些配方製作（%d）", DB_USED_BY_FMT = "用於這些配方（%d）",
-  TT_ILVL_FMT = "物品等級 %d",
+  SET_TITLE = "語言", SET_DESC = "切換技能物品指南的介面與名稱語言。遊戲本身的提示框與聊天連結仍是遊戲語言。",
+  SET_FOLLOW_FMT = "跟隨遊戲（目前：%s）",
+  TT_ILVL_FMT = "物品等級 %d", RANK_FMT = "等級 %d", DUR_D_FMT = "%d 天", DUR_H_FMT = "%d 小時", DUR_M_FMT = "%d 分鐘",
   DB_ILVL_FMT = "物品等級 %d", DB_OVERFLOW_FMT = "…還有 %d 筆，請用搜尋或左側篩選縮小範圍", DB_MORE_FMT = "顯示更多（還有 %d 筆）",
   TO_PROF = "到專業分頁 >", TO_SKILL = "到職業技能 >",
   DB_SOURCE_FMT = "資料來源：Blizzard API（%s，%s 匯出）",
@@ -139,8 +144,56 @@ local PROF = {
 }
 ns.LOCALES = LOCALES
 
+-- 客戶端語系對應：zhTW → zhTW；enUS／enGB → enUS；其他（deDE 等）→ nil
+local CLIENT = { zhTW = "zhTW", enUS = "enUS", enGB = "enUS" }
+local VALID = { zhTW = true, enUS = true }
+function ns.clientLang() return CLIENT[GetLocale and GetLocale() or ""] end
+
+-- 設定值：直接讀全域存檔（ns.db 要到 ADDON_LOADED 才設）；非法值當成跟隨遊戲。正式服沒有設定頁，一律無設定
+local function setting()
+  local F = ns.Flavor
+  if F and F.isRetail and F.isRetail() then return nil end
+  local db = SkillsItemsGuideDB
+  local v = type(db) == "table" and db.lang or nil
+  return VALID[v] and v or nil
+end
+
+function ns.lang() return setting() or ns.clientLang() or "enUS" end
+function ns.langSetting() return setting() end -- 設定頁勾選用：nil＝跟隨遊戲
+
+-- 名稱要不要改用打包的：只有設定了、而且跟客戶端語言不同時。跟隨遊戲時一律 false（非中英客戶端行為不變）
+function ns.useBundled()
+  local v = setting()
+  return v ~= nil and v ~= ns.clientLang()
+end
+
+-- 名稱用哪種語言的打包資料：顯示語言 ≠ 客戶端時用顯示語言，否則用客戶端語言（非中英客戶端＝nil，用遊戲名稱）
+function ns.nameLang() return ns.useBundled() and ns.lang() or ns.clientLang() end
+
+-- 畫面會不會變：顯示語言或名稱來源任一個變了都算（deDE 跟隨遊戲→English 時 lang 不變，但名稱改用打包的）
+local function viewKey() return ns.lang() .. "/" .. tostring(ns.nameLang()) end
+
+ns.onLangChanged = {}
+local bound = {} -- { widget, key 或函式 }
+
+local function try(fn, ...)
+  local log = ns.ErrorLog
+  if log and log.try then return log.try(fn, ...) end
+  return pcall(fn, ...)
+end
+
+function ns.setLang(v)
+  if not VALID[v] then v = nil end
+  local before = viewKey()
+  if type(SkillsItemsGuideDB) ~= "table" then SkillsItemsGuideDB = {} end
+  SkillsItemsGuideDB.lang = v
+  if viewKey() == before then return end
+  ns.L.rebind()
+  for _, fn in ipairs(ns.onLangChanged) do try(fn) end
+end
+
 local L = setmetatable({}, { __index = function(_, k)
-  local t = LOCALES[GetLocale()] or LOCALES.enUS
+  local t = LOCALES[ns.lang()] or LOCALES.enUS
   local v = t[k]
   if v == nil then v = LOCALES.enUS[k] end
   return v
@@ -153,12 +206,27 @@ function L.oldOnly(old) return string.format(L.OLD_ONLY_FMT, old) end
 function L.join(list) return table.concat(list, L.SEP) end
 function L.label(a, b) return a .. L.COLON .. b end
 function L.class(id)
-  local t = CLASS[GetLocale()] or CLASS.enUS
+  local t = CLASS[ns.lang()] or CLASS.enUS
   return t[id] or CLASS.enUS[id] or tostring(id)
 end
 function L.prof(id)
-  local t = PROF[GetLocale()] or PROF.enUS
+  local t = PROF[ns.lang()] or PROF.enUS
   return t[id] or PROF.enUS[id] or tostring(id)
+end
+
+-- 固定文字：登記後立即設定，語言切換時 L.rebind() 重套（key 字串或回傳字串的函式）
+local function apply(w, src)
+  local v
+  if type(src) == "function" then v = src() else v = L[src] end
+  w:SetText(v)
+end
+function L.bind(w, src)
+  bound[#bound + 1] = { w, src }
+  try(apply, w, src)
+  return w
+end
+function L.rebind()
+  for _, b in ipairs(bound) do try(apply, b[1], b[2]) end
 end
 
 ns.L = L

@@ -30,7 +30,7 @@ function SkillTab.costText(cost)
   return tostring(cost)
 end
 
-local function spellName(id) return C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id) end
+local function spellName(id) return ns.Names.spell(id) end
 
 local function compute()
   local own = S.classId == playerClass()
@@ -127,7 +127,7 @@ function SkillTab.render()
       row.spell = r.spell
       row.icon:SetTexture(C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r.spell) or 134400)
       row.icon:Show()
-      local sub = C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(r.spell)
+      local sub = ns.Names.spellSub(r.spell)
       local text = (spellName(r.spell) or ("#" .. r.spell)) .. (sub and sub ~= "" and (" " .. sub) or "")
       if r.status then text = text .. "  " .. L[STATUS_LABEL[r.status]] end
       row.text:SetText(text)
@@ -189,7 +189,7 @@ local function buildDropdown(parent)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(52, 20)
     b:SetPoint("TOPLEFT", 60 + (k - 1) * 54, -4)
-    b:SetText(L.class(id))
+    L.bind(b, function() return L.class(id) end)
     b:SetScript("OnClick", function() SkillTab.selectClass(id) end)
   end
 end
@@ -199,7 +199,7 @@ local function build(container)
   ui = { checks = {} }
   local label = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   label:SetPoint("TOPLEFT", 10, -8)
-  label:SetText(L.CLASS_LABEL)
+  L.bind(label, "CLASS_LABEL")
   ui.classText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   ui.classText:SetPoint("TOPRIGHT", -12, -8)
   buildDropdown(panel)
@@ -224,7 +224,7 @@ local function build(container)
     if prev then cb:SetPoint("LEFT", prev, "RIGHT", 24, 0) else cb:SetPoint("LEFT", ui.search, "RIGHT", 20, 0) end
     local t = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     t:SetPoint("LEFT", cb, "RIGHT", 4, 0)
-    t:SetText(L[STATUS_LABEL[key]])
+    L.bind(t, STATUS_LABEL[key])
     local col = STATUS_COLOR[key]
     t:SetTextColor(col[1], col[2], col[3])
     cb:SetScript("OnClick", function(self)
@@ -265,7 +265,15 @@ end
 function SkillTab._lines() return lines end -- 測試用
 function SkillTab._ui() return ui end -- 測試用
 
-ns.Window.registerTab("skill", L.TAB_SKILL, build, function()
+-- 語言切換：分頁開著就重算重畫；下拉的目前選項要重新產生
+table.insert(ns.onLangChanged, function()
+  if not panel then return end
+  if S.classId then compute() end
+  SkillTab.render()
+  SkillTab.refreshDropdown()
+end)
+
+ns.Window.registerTab("skill", "TAB_SKILL", build, function()
   if not S.classId then S.classId = playerClass() end
   compute()
   SkillTab.render()

@@ -146,7 +146,8 @@ do
     sources = { [3] = { src = "book", books = { { item = 901, skill = 100, bind = 2, fac = 529, rep = 5, side = "A", quests = { 10, 12 } } } },
                 [2] = { src = "trainer" }, [1] = { src = "auto", tr = { 1, 2, 3, 4 } } },
     names = NAMES_() })
-  H.eq(ns.Data.sourceNamesByLocale.zhTW, nil, "載入後釋放另一語系")
+  -- 0.6.0 起兩種語言都保留（語言切換立即生效），顯示仍只用名稱語言那份（下面的 CJK 檢查）
+  H.check(ns.Data.sourceNamesByLocale.zhTW ~= nil, "兩種語言名稱都保留，可以切換")
   for _, id in ipairs({ 1, 2, 3 }) do
     local lines = ns.Source.lines(id, { side = "A", names = names(true) })
     for _, l in ipairs(lines) do

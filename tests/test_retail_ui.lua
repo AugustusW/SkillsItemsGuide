@@ -76,3 +76,12 @@ do
   H.eq(r.src, nil, "正式版列沒有取得方式資訊")
   H.check(not r.tag._shown and not r.dot._shown and not r.tick._shown, "正式版標籤、圓點、圖示都不顯示")
 end
+
+-- 語言切換只在永恆：正式服存檔有設定也照客戶端語言（spec 2026-11-27 §6）
+do
+  H.reset({ manifest = "api_manifest_retail.lua", projectId = 1, locale = "enUS" })
+  SkillsItemsGuideDB = { lang = "zhTW" }
+  local r = H.load({ "Locale.lua", "Flavor.lua" })
+  H.eq(r.L.TAB_PROF, "Professions", "正式服存檔設繁中仍是英文介面")
+  H.eq(r.useBundled(), false, "正式服不用打包名稱")
+end

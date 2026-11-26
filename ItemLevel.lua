@@ -27,7 +27,7 @@ function ItemLevel.of(id)
   if rec then
     il = (il and il > 0) and il or rec.il
     cls = cls or rec.c
-    name = name or ns.DbIndex.bundledName(id)
+    name = name or ns.DbIndex.clientName(id) -- 比對遊戲 tooltip 的名稱行：客戶端語言，跟顯示語言無關
   end
   if not (il and il > 0 and cls and GEAR[cls]) then return nil end
   return il, name

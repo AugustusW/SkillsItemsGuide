@@ -521,7 +521,7 @@ local function build()
   ui = {}
   local title = frame.TitleText or frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   if not frame.TitleText then title:SetPoint("TOP", 0, -5) end
-  title:SetText(L.ADDON_TITLE)
+  L.bind(title, "ADDON_TITLE")
   local icon = frame:CreateTexture(nil, "OVERLAY")
   icon:SetSize(18, 18)
   icon:SetPoint("RIGHT", title, "LEFT", -4, 0)
@@ -531,7 +531,7 @@ local function build()
   ui.tabProf = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   ui.tabProf:SetSize(100, 22)
   ui.tabProf:SetPoint("TOPLEFT", 12, -28)
-  ui.tabProf:SetText(L.TAB_PROF)
+  L.bind(ui.tabProf, "TAB_PROF")
   ui.tabProf:SetScript("OnClick", function() Window.setTab("prof") end)
   ui.tabs.prof = ui.tabProf
 
@@ -545,7 +545,7 @@ local function build()
     local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     b:SetSize(100, 22)
     b:SetPoint("LEFT", prev, "RIGHT", 4, 0)
-    b:SetText(t.label)
+    L.bind(b, t.label) -- Locale key 或函式：存檔設定在 ADDON_LOADED 才讀得到，建立時才取字
     b:SetScript("OnClick", function() Window.setTab(t.key) end)
     ui.tabs[t.key] = b
     prev = b
@@ -569,7 +569,7 @@ local function build()
     local b = CreateFrame("Button", nil, ui.prof, "UIPanelButtonTemplate")
     b:SetSize(150, 20)
     b:SetPoint("TOPLEFT", 6, -30 - (i - 1) * 22)
-    b:SetText(L.prof(id))
+    L.bind(b, function() return L.prof(id) end)
     b:SetScript("OnClick", function() Window.setProf(id) end)
   end
 
@@ -581,13 +581,13 @@ local function build()
   ui.clear = CreateFrame("Button", nil, ui.prof, "UIPanelButtonTemplate")
   ui.clear:SetSize(60, 20)
   ui.clear:SetPoint("TOPRIGHT", -130, -2)
-  ui.clear:SetText(L.CLEAR)
+  L.bind(ui.clear, "CLEAR")
   ui.clear:SetScript("OnClick", function() Window.setProf(S.prof) end)
   -- 從物品／法術分頁跳過來時，回到原分頁（該分頁的狀態保留在自己的模組裡）
   ui.back = CreateFrame("Button", nil, ui.prof, "UIPanelButtonTemplate")
   ui.back:SetSize(70, 20)
   ui.back:SetPoint("RIGHT", ui.clear, "LEFT", -4, 0)
-  ui.back:SetText(L.BACK)
+  L.bind(ui.back, "BACK")
   ui.back:SetScript("OnClick", function() Window.back() end)
   ui.qty = CreateFrame("EditBox", nil, ui.prof, "InputBoxTemplate")
   ui.qty:SetSize(40, 20)
@@ -599,10 +599,10 @@ local function build()
   ui.qty:SetScript("OnTextChanged", function(self) S.qty = Window.clampQty(self:GetText()); Window.render() end)
   ui.qtyLabel = ui.prof:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   ui.qtyLabel:SetPoint("RIGHT", ui.qty, "LEFT", -6, 0)
-  ui.qtyLabel:SetText(L.QUANTITY)
+  L.bind(ui.qtyLabel, "QUANTITY")
   ui.hint = ui.prof:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   ui.hint:SetPoint("TOPLEFT", 172, -28)
-  ui.hint:SetText(L.LIST_HINT)
+  L.bind(ui.hint, "LIST_HINT")
   ui.notOpened = ui.prof:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   ui.notOpened:SetPoint("TOPLEFT", 172, -42)
   ui.notOpened:SetWidth(700)
@@ -619,7 +619,7 @@ local function build()
   ui.empty:SetPoint("TOPLEFT", 176, -70)
   ui.version = ui.prof:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   ui.version:SetPoint("BOTTOMRIGHT", -10, 10)
-  ui.version:SetText(Window.footerText())
+  L.bind(ui.version, Window.footerText)
 
   frame:SetScript("OnHide", function()
     ui.search:ClearFocus(); ui.qty:ClearFocus()
@@ -629,7 +629,7 @@ local function build()
   for _, t in ipairs(registered) do t.build(Window.tabs[t.key]) end
 end
 
--- 分頁註冊：build(panel) 在視窗建立時呼叫一次，onShow() 每次切到該分頁時呼叫，
+-- 分頁註冊：label 是 Locale key（或回傳字串的函式），按鈕文字跟著顯示語言；build(panel) 在視窗建立時呼叫一次，onShow() 每次切到該分頁時呼叫，
 -- refresh()（可省略）在物品名稱載入回來時呼叫，不重置捲動
 function Window.registerTab(key, label, buildFn, onShow, refresh)
   registered[#registered + 1] = { key = key, label = label, build = buildFn, onShow = onShow, refresh = refresh }
@@ -726,6 +726,15 @@ function Window.refreshIfShown()
     recompute(); Window.render()
   end
 end
+
+-- 語言切換：固定文字已由 L.rebind 重套；這裡把每個分頁算出來的字（標題、清單、詳情）都重算，
+-- 切到別的分頁時不會先看到舊語言（職業技能分頁自己處理）
+function Window.onLangChanged()
+  if not frame then return end
+  recompute(); Window.render()
+  for _, t in ipairs(registered) do if t.refresh then t.refresh() end end
+end
+table.insert(ns.onLangChanged, Window.onLangChanged)
 
 function Window.toggle()
   if frame and frame:IsShown() then frame:Hide() else Window.open({}) end
