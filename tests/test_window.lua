@@ -12,6 +12,7 @@ local function boot(locale)
     C_Spell = { GetSpellName = function() return nil end, GetSpellTexture = function() return 1 end },
     GameTooltip = { SetOwner = function() end, ClearLines = function() end, AddLine = function() end, Show = function() end, Hide = function() end },
     hooksecurefunc = function() end,
+    IsPlayerSpell = function() return true end, -- 角色每個專業都學了配方（未開專業提示的前提）
   } })
   local ns = H.load(files)
   H.fire("ADDON_LOADED", "SkillsItemsGuide")
@@ -85,6 +86,7 @@ H.reset({ locale = "zhTW", extra = {
   GameTooltip = { SetOwner = function() end, ClearLines = function() end, AddLine = function() end, Show = function() end,
     Hide = function() end, IsShown = function() return true end, RefreshData = function() refreshes = refreshes + 1 end },
   hooksecurefunc = function() end,
+  IsPlayerSpell = function() return true end, -- 角色每個專業都學了配方（未開專業提示的前提）
 } })
 ns = H.load(files)
 SkillsItemsGuideCharDB = { professions = { ["197"] = true, ["129"] = true } }
@@ -120,6 +122,11 @@ H.check(st2.footer and st2.footer:find(tostring(st2.overflow), 1, true), "超過
 H.eq(st2.empty, nil, "有結果時空狀態文字是空的")
 H.eq(ns.Window.hintText(), "滑鼠移到圖示看拆解，點 + 展開", "第一行提示只放操作說明")
 H.check(ns.Window.notOpenedText():find("急救", 1, true) ~= nil, "未開專業的提示獨立一行")
+IsPlayerSpell = function() return false end
+H.fire("SKILL_LINES_CHANGED")
+H.eq(ns.Window.notOpenedText(), "", "一個配方都沒學：視窗底部不列未開專業")
+IsPlayerSpell = function() return true end
+H.fire("SKILL_LINES_CHANGED")
 
 -- 使用者實測：文字超出視窗 → 材料行與展開的樹限寬換行，列高跟著文字高度
 ns.Window.open({ material = 2321 })

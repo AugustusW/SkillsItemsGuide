@@ -3,6 +3,14 @@
 每個版本一段，標題是 `## <版本>`；段內小標用 `###`。發版時 GitHub Release 與 CurseForge 的更新說明取自對應的段落。
 0.6.0 起每段英文在上、中文在下，中間用 `---` 分隔。
 
+## 0.6.1
+
+- The login reminder (and the line at the bottom of the addon window) about profession windows you have never opened now only lists professions where you have learned at least one recipe. Before, a profession with no learned recipes, such as Fishing in Forever, was listed on every login even after you opened it, because its window is empty and the addon could not tell which profession it belonged to.
+
+---
+
+- 登入時（以及插件視窗底部）「還沒打開過專業視窗」的提示，現在只列至少學了一個配方的專業。之前一個配方都沒學的專業（例如永恆版的釣魚）打開過也照樣每次登入都提示，因為它的視窗是空的，插件分辨不出是哪個專業
+
 ## 0.6.0
 
 - Forever: new setting under Options > AddOns > SkillsItemsGuide to choose the addon's language: Follow game (default), 繁體中文 (Traditional Chinese) or English. It takes effect immediately, without /reload, and is remembered across logins. Players on English-only clients (for example US realms) can now use the addon in Traditional Chinese.

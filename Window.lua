@@ -691,15 +691,7 @@ end
 
 -- 學了但還沒開過視窗的專業（獨立一行，避免超出視窗寬度）
 function Window.notOpenedText()
-  local char = SkillsItemsGuideCharDB or {}
-  local missing = {}
-  for p in pairs(char.professions or {}) do
-    local id = tonumber(p)
-    if id and not (char.opened or {})[p] and ns.Data.professions and ns.Data.professions[id] then
-      missing[#missing + 1] = L.prof(id)
-    end
-  end
-  table.sort(missing)
+  local missing = ns.Scan.unopened()
   if #missing == 0 then return "" end
   return string.format(L.NOT_OPENED_FMT, L.join(missing))
 end

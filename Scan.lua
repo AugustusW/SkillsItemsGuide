@@ -176,6 +176,43 @@ local function sourceProfessions()
   return set
 end
 
+-- 學了但還沒開過視窗、而且至少學了一個配方的專業名稱（已排序）；登入提示與視窗底部共用。
+-- 一個配方都沒學的專業（例：永恆版釣魚）視窗是空清單，用配方反推不到是哪個專業，會每次登入都提示（使用者 2026-11-28）；
+-- 沒學配方也沒東西可掃，不提示。永恆版 GetBaseProfessionInfo 回空值，改用 IsPlayerSpell（實測 56 個已學配方全部認得）
+-- 每個專業有沒有學到配方的快取：視窗每次重繪都會問，正式版一萬多筆配方不能每次重掃（審查 2026-11-28）。
+-- 專業與專業視窗相關事件時清掉（下面的事件處理）
+local hasLearned = {}
+
+function Scan.unopened()
+  local char = SkillsItemsGuideCharDB or {}
+  local D = ns.Data or {}
+  local pending, left, candidates = {}, 0, {}
+  for p in pairs(char.professions or {}) do
+    local id = tonumber(p)
+    if id and not (char.opened or {})[p] and D.professions and D.professions[id] then
+      candidates[#candidates + 1] = id
+      if hasLearned[id] == nil then pending[id] = true; left = left + 1 end
+    end
+  end
+  if left > 0 and IsPlayerSpell then
+    for _, rec in pairs(D.recipes or {}) do
+      if pending[rec.p] then
+        for _, sp in ipairs(rec.spells or { rec.spell }) do
+          if IsPlayerSpell(sp) then hasLearned[rec.p] = true; pending[rec.p] = nil; left = left - 1; break end
+        end
+        if left == 0 then break end
+      end
+    end
+    for id in pairs(pending) do hasLearned[id] = false end
+  end
+  local missing = {}
+  for _, id in ipairs(candidates) do
+    if hasLearned[id] then missing[#missing + 1] = ns.L.prof(id) end
+  end
+  table.sort(missing)
+  return missing
+end
+
 -- 登入提示：學了但還沒開過視窗的專業（使用者 2026-11-08：不提示的話使用者不知道要開）；
 -- 永恆版再加一行：學了但訓練師沒開過的專業（2026-11-22，需要玩家動作的功能要主動提示、做完就不再提示）
 function Scan.remindUnopened()
@@ -183,18 +220,16 @@ function Scan.remindUnopened()
   local db = SkillsItemsGuideDB or {}
   local trainerProf = db.trainer and db.trainer.prof or {}
   local withSources = sourceProfessions()
-  local missing, noTrainer = {}, {}
+  local missing, noTrainer = Scan.unopened(), {}
   for p in pairs(char.professions or {}) do
     local id = tonumber(p)
     if id and ns.Data and ns.Data.professions and ns.Data.professions[id] then
-      if not (char.opened or {})[p] then missing[#missing + 1] = ns.L.prof(id) end
       if withSources[id] and not trainerProf[p] then noTrainer[#noTrainer + 1] = ns.L.prof(id) end
     end
   end
   if #missing == 0 and #noTrainer == 0 then return end
   local lines = {}
   if #missing > 0 then
-    table.sort(missing)
     lines[#lines + 1] = ns.L.ADDON_TITLE .. ns.L.COLON .. string.format(ns.L.NOT_OPENED_FMT, ns.L.join(missing))
   end
   if #noTrainer > 0 then
@@ -220,6 +255,7 @@ table.insert(ns.onLoad, function()
     C_Timer.After(0.5, function() pendingScan = false; Scan.known() end)
   end
   f:SetScript("OnEvent", function(_, ev)
+    hasLearned = {}
     if ev == "PLAYER_LOGIN" or ev == "SKILL_LINES_CHANGED" then Scan.professions() else knownSoon() end
     if ev == "PLAYER_LOGIN" then Scan.remindUnopened() end
   end)

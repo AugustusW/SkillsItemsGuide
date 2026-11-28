@@ -171,9 +171,10 @@ H.check(ns.trainerDebugText():find("count=", 1, true) ~= nil, "訓練師診斷�
 SkillsItemsGuideDB.trainerDebug = nil
 H.check(ns.trainerDebugText():find("no trainer", 1, true) ~= nil, "沒有讀過訓練師時的文字")
 
--- 使用者要求：登入時提示還沒開過視窗的專業（全部開過就不提示）
+-- 使用者要求：登入時提示還沒開過視窗的專業（全部開過就不提示）；兩個專業都有學到配方
 local printed = {}
 H.reset({ locale = "zhTW", extra = {
+  IsPlayerSpell = function() return true end,
   GetProfessions = function() return 1, 2 end,
   GetProfessionInfo = function(i) if i == 1 then return "裁縫", nil, 1, 75, 1, 0, 197 end return "急救", nil, 1, 75, 1, 0, 129 end,
 } })
